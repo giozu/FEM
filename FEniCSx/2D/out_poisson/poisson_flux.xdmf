@@ -3,11 +3,11 @@
 <Xdmf Version="3.0" xmlns:xi="http://www.w3.org/2001/XInclude">
   <Domain>
     <Grid Name="mesh" GridType="Uniform">
-      <Topology TopologyType="Quadrilateral" NumberOfElements="64" NodesPerElement="4">
-        <DataItem Dimensions="64 4" NumberType="Int" Format="HDF">poisson_flux.h5:/Mesh/mesh/topology</DataItem>
+      <Topology TopologyType="Triangle" NumberOfElements="1536" NodesPerElement="3">
+        <DataItem Dimensions="1536 3" NumberType="Int" Format="HDF">poisson_flux.h5:/Mesh/mesh/topology</DataItem>
       </Topology>
       <Geometry GeometryType="XY">
-        <DataItem Dimensions="81 2" Format="HDF">poisson_flux.h5:/Mesh/mesh/geometry</DataItem>
+        <DataItem Dimensions="817 2" Format="HDF">poisson_flux.h5:/Mesh/mesh/geometry</DataItem>
       </Geometry>
     </Grid>
     <Grid Name="f" GridType="Collection" CollectionType="Temporal">
@@ -15,7 +15,7 @@
         <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@GridType='Uniform'][1]/*[self::Topology or self::Geometry])" />
         <Time Value="0" />
         <Attribute Name="f" AttributeType="Vector" Center="Node">
-          <DataItem Dimensions="81 3" Format="HDF">poisson_flux.h5:/Function/f/0</DataItem>
+          <DataItem Dimensions="817 3" Format="HDF">poisson_flux.h5:/Function/f/0</DataItem>
         </Attribute>
       </Grid>
     </Grid>
