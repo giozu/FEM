@@ -1,23 +1,14 @@
 <?xml version="1.0"?>
 <!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
-<Xdmf Version="3.0" xmlns:xi="http://www.w3.org/2001/XInclude">
+<Xdmf Version="3.0" xmlns:xi="https://www.w3.org/2001/XInclude">
   <Domain>
     <Grid Name="mesh" GridType="Uniform">
-      <Topology TopologyType="Tetrahedron" NumberOfElements="192674" NodesPerElement="4">
-        <DataItem Dimensions="192674 4" NumberType="Int" Format="HDF">channel_cylinder3D.h5:/Mesh/mesh/topology</DataItem>
+      <Topology TopologyType="Tetrahedron" NumberOfElements="193396" NodesPerElement="4">
+        <DataItem Dimensions="193396 4" NumberType="Int" Format="HDF">channel_cylinder3D.h5:/Mesh/mesh/topology</DataItem>
       </Topology>
       <Geometry GeometryType="XYZ">
-        <DataItem Dimensions="36163 3" Format="HDF">channel_cylinder3D.h5:/Mesh/mesh/geometry</DataItem>
+        <DataItem Dimensions="36304 3" Format="HDF">channel_cylinder3D.h5:/Mesh/mesh/geometry</DataItem>
       </Geometry>
-    </Grid>
-    <Grid Name="Facet tags" GridType="Uniform">
-      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid/Geometry)" />
-      <Topology TopologyType="Triangle" NumberOfElements="20442" NodesPerElement="3">
-        <DataItem Dimensions="20442 3" NumberType="Int" Format="HDF">channel_cylinder3D.h5:/MeshTags/Facet tags/topology</DataItem>
-      </Topology>
-      <Attribute Name="Facet tags" AttributeType="Scalar" Center="Cell">
-        <DataItem Dimensions="20442 1" Format="HDF">channel_cylinder3D.h5:/MeshTags/Facet tags/Values</DataItem>
-      </Attribute>
     </Grid>
   </Domain>
 </Xdmf>
