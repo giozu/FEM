@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="3.0" xmlns:xi="https://www.w3.org/2001/XInclude">
+  <Domain>
+    <Grid Name="hollow_circle" GridType="Uniform">
+      <Topology TopologyType="Triangle" NumberOfElements="1239" NodesPerElement="3">
+        <DataItem Dimensions="1239 3" NumberType="Int" Format="HDF">hollow_circle.h5:/Mesh/hollow_circle/topology</DataItem>
+      </Topology>
+      <Geometry GeometryType="XYZ">
+        <DataItem Dimensions="746 3" Format="HDF">hollow_circle.h5:/Mesh/hollow_circle/geometry</DataItem>
+      </Geometry>
+    </Grid>
+    <Grid Name="hollow_circle_cells" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='hollow_circle']/Geometry)" />
+      <Topology TopologyType="Triangle" NumberOfElements="1239" NodesPerElement="3">
+        <DataItem Dimensions="1239 3" NumberType="Int" Format="HDF">hollow_circle.h5:/MeshTags/hollow_circle_cells/topology</DataItem>
+      </Topology>
+      <Attribute Name="hollow_circle_cells" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="1239 1" Format="HDF">hollow_circle.h5:/MeshTags/hollow_circle_cells/Values</DataItem>
+      </Attribute>
+    </Grid>
+    <Grid Name="hollow_circle_facets" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='hollow_circle']/Geometry)" />
+      <Topology TopologyType="PolyLine" NumberOfElements="0" NodesPerElement="2">
+        <DataItem Dimensions="0 2" NumberType="Int" Format="HDF">hollow_circle.h5:/MeshTags/hollow_circle_facets/topology</DataItem>
+      </Topology>
+      <Attribute Name="hollow_circle_facets" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="0 1" Format="HDF">hollow_circle.h5:/MeshTags/hollow_circle_facets/Values</DataItem>
+      </Attribute>
+    </Grid>
+  </Domain>
+</Xdmf>

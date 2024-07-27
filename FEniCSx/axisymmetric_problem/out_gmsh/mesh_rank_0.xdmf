@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="3.0" xmlns:xi="https://www.w3.org/2001/XInclude">
+  <Domain>
+    <Grid Name="sphere" GridType="Uniform">
+      <Topology TopologyType="Tetrahedron" NumberOfElements="679" NodesPerElement="4">
+        <DataItem Dimensions="679 4" NumberType="Int" Format="HDF">mesh_rank_0.h5:/Mesh/sphere/topology</DataItem>
+      </Topology>
+      <Geometry GeometryType="XYZ">
+        <DataItem Dimensions="205 3" Format="HDF">mesh_rank_0.h5:/Mesh/sphere/geometry</DataItem>
+      </Geometry>
+    </Grid>
+    <Grid Name="sphere_cells" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='sphere']/Geometry)" />
+      <Topology TopologyType="Tetrahedron" NumberOfElements="679" NodesPerElement="4">
+        <DataItem Dimensions="679 4" NumberType="Int" Format="HDF">mesh_rank_0.h5:/MeshTags/sphere_cells/topology</DataItem>
+      </Topology>
+      <Attribute Name="sphere_cells" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="679 1" Format="HDF">mesh_rank_0.h5:/MeshTags/sphere_cells/Values</DataItem>
+      </Attribute>
+    </Grid>
+    <Grid Name="sphere_facets" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='sphere']/Geometry)" />
+      <Topology TopologyType="Triangle" NumberOfElements="0" NodesPerElement="3">
+        <DataItem Dimensions="0 3" NumberType="Int" Format="HDF">mesh_rank_0.h5:/MeshTags/sphere_facets/topology</DataItem>
+      </Topology>
+      <Attribute Name="sphere_facets" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="0 1" Format="HDF">mesh_rank_0.h5:/MeshTags/sphere_facets/Values</DataItem>
+      </Attribute>
+    </Grid>
+  </Domain>
+</Xdmf>

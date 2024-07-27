@@ -1,0 +1,83 @@
+<?xml version="1.0"?>
+<Xdmf Version="3.0" xmlns:xi="https://www.w3.org/2001/XInclude">
+  <Domain>
+    <Grid Name="ball_d1" GridType="Uniform">
+      <Topology TopologyType="Tetrahedron" NumberOfElements="595" NodesPerElement="4">
+        <DataItem Dimensions="595 4" NumberType="Int" Format="HDF">mesh.h5:/Mesh/ball_d1/topology</DataItem>
+      </Topology>
+      <Geometry GeometryType="XYZ">
+        <DataItem Dimensions="199 3" Format="HDF">mesh.h5:/Mesh/ball_d1/geometry</DataItem>
+      </Geometry>
+    </Grid>
+    <Grid Name="ball_d1_cells" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='ball_d1']/Geometry)" />
+      <Topology TopologyType="Tetrahedron" NumberOfElements="595" NodesPerElement="4">
+        <DataItem Dimensions="595 4" NumberType="Int" Format="HDF">mesh.h5:/MeshTags/ball_d1_cells/topology</DataItem>
+      </Topology>
+      <Attribute Name="ball_d1_cells" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="595 1" Format="HDF">mesh.h5:/MeshTags/ball_d1_cells/Values</DataItem>
+      </Attribute>
+    </Grid>
+    <Grid Name="ball_d1_facets" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='ball_d1']/Geometry)" />
+      <Topology TopologyType="Triangle" NumberOfElements="344" NodesPerElement="3">
+        <DataItem Dimensions="344 3" NumberType="Int" Format="HDF">mesh.h5:/MeshTags/ball_d1_facets/topology</DataItem>
+      </Topology>
+      <Attribute Name="ball_d1_facets" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="344 1" Format="HDF">mesh.h5:/MeshTags/ball_d1_facets/Values</DataItem>
+      </Attribute>
+    </Grid>
+    <Grid Name="ball_d2" GridType="Uniform">
+      <Topology TopologyType="Tetrahedron_10" NumberOfElements="595" NodesPerElement="10">
+        <DataItem Dimensions="595 10" NumberType="Int" Format="HDF">mesh.h5:/Mesh/ball_d2/topology</DataItem>
+      </Topology>
+      <Geometry GeometryType="XYZ">
+        <DataItem Dimensions="1164 3" Format="HDF">mesh.h5:/Mesh/ball_d2/geometry</DataItem>
+      </Geometry>
+    </Grid>
+    <Grid Name="ball_d2_cells" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='ball_d2']/Geometry)" />
+      <Topology TopologyType="Tetrahedron_10" NumberOfElements="595" NodesPerElement="10">
+        <DataItem Dimensions="595 10" NumberType="Int" Format="HDF">mesh.h5:/MeshTags/ball_d2_cells/topology</DataItem>
+      </Topology>
+      <Attribute Name="ball_d2_cells" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="595 1" Format="HDF">mesh.h5:/MeshTags/ball_d2_cells/Values</DataItem>
+      </Attribute>
+    </Grid>
+    <Grid Name="ball_d2_facets" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='ball_d2']/Geometry)" />
+      <Topology TopologyType="Triangle_6" NumberOfElements="344" NodesPerElement="6">
+        <DataItem Dimensions="344 6" NumberType="Int" Format="HDF">mesh.h5:/MeshTags/ball_d2_facets/topology</DataItem>
+      </Topology>
+      <Attribute Name="ball_d2_facets" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="344 1" Format="HDF">mesh.h5:/MeshTags/ball_d2_facets/Values</DataItem>
+      </Attribute>
+    </Grid>
+    <Grid Name="hex_d2" GridType="Uniform">
+      <Topology TopologyType="Hexahedron_27" NumberOfElements="200" NodesPerElement="27">
+        <DataItem Dimensions="200 27" NumberType="Int" Format="HDF">mesh.h5:/Mesh/hex_d2/topology</DataItem>
+      </Topology>
+      <Geometry GeometryType="XYZ">
+        <DataItem Dimensions="2156 3" Format="HDF">mesh.h5:/Mesh/hex_d2/geometry</DataItem>
+      </Geometry>
+    </Grid>
+    <Grid Name="hex_d2_cells" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='hex_d2']/Geometry)" />
+      <Topology TopologyType="Hexahedron_27" NumberOfElements="200" NodesPerElement="27">
+        <DataItem Dimensions="200 27" NumberType="Int" Format="HDF">mesh.h5:/MeshTags/hex_d2_cells/topology</DataItem>
+      </Topology>
+      <Attribute Name="hex_d2_cells" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="200 1" Format="HDF">mesh.h5:/MeshTags/hex_d2_cells/Values</DataItem>
+      </Attribute>
+    </Grid>
+    <Grid Name="hex_d2_facets" GridType="Uniform">
+      <xi:include xpointer="xpointer(/Xdmf/Domain/Grid[@Name='hex_d2']/Geometry)" />
+      <Topology TopologyType="Quadrilateral_9" NumberOfElements="260" NodesPerElement="9">
+        <DataItem Dimensions="260 9" NumberType="Int" Format="HDF">mesh.h5:/MeshTags/hex_d2_facets/topology</DataItem>
+      </Topology>
+      <Attribute Name="hex_d2_facets" AttributeType="Scalar" Center="Cell">
+        <DataItem Dimensions="260 1" Format="HDF">mesh.h5:/MeshTags/hex_d2_facets/Values</DataItem>
+      </Attribute>
+    </Grid>
+  </Domain>
+</Xdmf>
