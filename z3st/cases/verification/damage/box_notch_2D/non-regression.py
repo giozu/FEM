@@ -110,7 +110,7 @@ plt.savefig(os.path.join(CASE_DIR, "output", "damage_check.png"), dpi=300)
 # PLOT 2:
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
 
-# Damge
+# Damage
 ax1.plot(y_prof, D_prof, "-", color="#D55E00", lw=2, label="Damage $d$")
 ax1.fill_between(y_prof, D_prof, color="#D55E00", alpha=0.1)
 ax1.axvline(Y_tip, color='k', ls=':', label="Notch tip")
