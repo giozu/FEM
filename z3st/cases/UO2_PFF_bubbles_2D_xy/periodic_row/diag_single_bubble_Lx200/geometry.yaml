@@ -1,0 +1,17 @@
+name: box_with_cavity
+geometry_type: rect
+Lx: 0.0002
+Ly: 6.0e-05
+cavity:
+  type: ellipse
+  x_c: 0.0
+  y_c: 0.0
+  ax: 1.12e-05
+  ay: 4.998277129465497e-06
+labels:
+  uo2: 1
+  ymin: 2
+  xmin: 3
+  xmax: 4
+  ymax: 5
+  cavity: 6

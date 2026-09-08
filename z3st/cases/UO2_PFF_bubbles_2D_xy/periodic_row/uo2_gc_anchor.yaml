@@ -1,0 +1,19 @@
+name: UO2
+
+E: 358.0e9          # (Pa) - Young's modulus
+nu: 0.23            # (-)  - Poisson's ratio
+
+k: 5.0              # (W/(m*K)) - Thermal conductivity
+cp: 280.0           # (J/(kg*K)) - Specific heat capacity
+rho: 10970.0        # (kg/m3) - Density
+
+alpha: 1.0e-5       # (1/K)
+
+# sigma_c = 421.5 MPa n'est PAS la résistance de l'UO2 : c'est le
+# paramètre permettant à l'identité AT1 (Gc = 8*lc*sigma_c^2/(3E)) de
+# produire Gc = 2.645 J/m², valeur déduite de K_IC = 1.0 MPa.m^0.5 par
+# Gc = K_IC^2 (1-nu^2)/E avec E = 358 GPa, nu = 0.23.
+sigma_c: 421.5e+6
+
+T_ref: 1023.15       # (K)
+T_initial: 1023.15  # (K) = 750 C, pellet uniformly hot before quench

@@ -1,0 +1,24 @@
+name: polydisperse_periodic_row_unit_cell
+geometry_type: rect
+Lx: 3.94e-05
+Ly: 6.0e-05
+cavity_A:
+  type: ellipse
+  x_c: 0.0
+  y_c: 0.0
+  ax: 1.12e-05
+  ay: 4.998277129465497e-06
+cavity_B:
+  type: ellipse
+  x_c: 3.94e-05
+  y_c: 0.0
+  ax: 5.6e-06
+  ay: 2.4991385647327484e-06
+labels:
+  uo2: 1
+  ymin: 2
+  xmin: 3
+  xmax: 4
+  ymax: 5
+  cavity_A: 6
+  cavity_B: 7
