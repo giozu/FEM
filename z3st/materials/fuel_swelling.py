@@ -64,3 +64,40 @@ def solid_gas_densification(T, material, model=None, dim=3):
     dv_dens = -d0 * (1.0 - ufl.exp(-bu / bu_d))
 
     return ((dv_solid + dv_gas + dv_dens) / 3.0) * I
+
+
+def uzrh_fission_product_swelling(T, material, model=None, dim=3):
+    """Fission-product swelling of U-ZrH (TRIGA) fuel.
+
+        ΔV/V = rate · bu
+        ε*   = (ΔV/V) / 3 · I
+
+    Card ``swelling_rate`` in 1/(MWd/kgU), default 2.0e-3 from Simnad &
+    Konings, Comprehensive Nuclear Materials vol. 3, §3.12.3.3: hydride fuel
+    swells at 3 % per %FIMA, which the same section converts to ΔV/V = 0.2 %
+    per MWd/kg equivalent-oxide burnup — three times the 0.07 % of UO2.
+
+    One rate covers all of it. The 3 %/%FIMA is the *total* measured swelling:
+    solid fission products, agglomeration of fission gases, and the saturable
+    nucleation of irradiation vacancies into voids. Splitting it into a solid
+    and a gaseous term the way :func:`solid_gas_densification` does for oxide
+    would double-count, and the gaseous sigmoid would be wrong here anyway:
+    below ~750 °C the volatiles stay in the hydride (§3.12.3.4), and above it
+    the release mechanisms are not those of UO2.
+
+    Two effects are deliberately absent:
+
+    - the offset swelling that precedes the constant-rate regime — the rate is
+      the slope *after* it, so this overestimates at very low burnup;
+    - the hydride expansion (ΔL/L)_H/Zr = 0.027 (H/Zr − 1.6) of Table 3, which
+      needs a spatially varying H/Zr, i.e. a hydrogen field. With a uniform
+      H/Zr it is a fabrication strain, not an irradiation eigenstrain. It
+      belongs here once a hydrogen-redistribution model provides the field.
+    """
+    I = ufl.Identity(dim)
+    bu = getattr(model, "burnup", None)
+    if bu is None:
+        return 0.0 * I
+
+    rate = float(material.get("swelling_rate", 2.0e-3))
+    return (rate * bu / 3.0) * I

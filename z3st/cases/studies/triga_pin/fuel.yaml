@@ -23,6 +23,14 @@ axial_table_f: [0.5367, 0.5915, 0.6707, 0.7362, 0.8002, 0.8626, 0.9277, 0.9948, 
 # depressione di flusso dentro il combustibile. Serve una tally cilindrica
 # lato OpenMC. Finché non c'è, f(r) = 1.
 
+# Swelling da prodotti di fissione, autodeformazione isotropa.
+# Konings §3.12.3.3: 3 % per %FIMA = 0.2 % per MWd/kg, tre volte l'UO2.
+# Il tasso copre solidi, gas e vuoti insieme: sotto ~750 °C i volatili restano
+# nell'idruro (§3.12.3.4), quindi non va separato un termine gassoso.
+eigenstrain: materials.fuel_swelling.uzrh_fission_product_swelling
+swelling_rate: 2.0e-3          # (1/(MWd/kgU))
+heavy_metal_fraction: 0.08     # (-) 8 % wt di U nell'idruro; il burnup è per kg di metallo pesante
+
 rho: 5950.0         # (kg/m³) densità del modello OpenMC del nocciolo (Fuel103)
 
 k: 18.0             # (W/(m·K)) Tabella 3, 18 +/- 1, costante nell'intervallo

@@ -56,21 +56,32 @@ thermal:
   rtol: 1.0e-5
   stag_tol: 1.0e-5
   convergence: rel_norm
-  analysis: stationary
+  analysis: transient
 
-# Potenza lineare dell'elemento: 250 kW / 83 elementi / 0.381 m = 7.91 kW/m.
-# È la media del nocciolo. Gli elementi 103 stanno negli anelli interni e
-# lavorano sopra la media: manca il fattore di picco radiale, che va preso da
-# una tally di potenza per elemento (fission-q-prompt sulla cella di
-# combustibile, normalizzata con heating-local). [TBC]
+# Potenza lineare dell'elemento, anello C: 4824 W / 0.381 m = 12 661 W/m.
+#
+# La potenza per elemento viene dalla Tabella 2.7 di Chiesa (tesi di dottorato,
+# 2013), che la dà per anello e per otto sezioni assiali a 250 kW:
+#   anello  B      C      D      E      F
+#   W    5553   4824   4183   3491   2666
+# L'elemento da cui è stata estratta la tabella assiale, (x, y) = (0, 8.2) cm nel
+# modello OpenMC, sta sul raggio dell'anello C. Rispetto alla media di nocciolo
+# (250 kW / 83 = 3012 W) il picco radiale dell'anello C è 1.60.
+#
+# La forma assiale della stessa tabella ha picco 1.26 su otto sezioni, contro
+# 1.302 sulle 35 righe estratte da OpenMC: le due sono coerenti, la differenza è
+# il binning.
+#
+# [TBC] la Tabella 2.7 è del nocciolo del 1965, quando gli elementi erano tutti
+# del tipo 101; qui la potenza di un anello C viene applicata a un 103.
 lhr:
-- 7906.0
-- 7906.0
+- 12661.0
+- 12661.0
 time:
 - 0.0
-- 1.0
+- 1.26e+8      # 35 000 h a 250 kW = 3.99 anni equivalenti a piena potenza (PIRT)
 n_steps:
-- 1
+- 20
 
 output:
   format: xdmf
