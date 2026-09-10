@@ -713,6 +713,129 @@ Implemented in :class:`z3st.models.damage_model.DamageModel`.
    Single-edge-notched shear test (steel): the curved crack path reproduces the
    benchmark of Miehe et al., *Comput. Methods Appl. Mech. Engrg.* 199 (2010).
 
+.. _cohesive-fracture:
+
+Cohesive Phase-Field Fracture (Tunable Strength Surface)
+--------------------------------------------------------
+
+The brittle model above approximates Griffith's theory, which carries no
+strength criterion: the material strength is recovered only indirectly, through
+the regularisation length, and the shape of the resulting multiaxial strength
+surface is whatever the chosen energy split happens to give. The cohesive model
+of Vicentini et al. (2026) removes both limitations. It keeps the variational
+structure but replaces the energy decomposition with a reversible **eigenstrain**
+:math:`\boldsymbol{\eta}`, promoted to a primary unknown, and degrades a
+**strength potential** instead of the elastic energy:
+
+.. math::
+
+   W_\ell(\boldsymbol{\varepsilon}, \boldsymbol{\eta}, \alpha, \nabla\alpha)
+   = \psi_e(\boldsymbol{\varepsilon} - \boldsymbol{\eta})
+   + a(\alpha)\, \pi_0(\boldsymbol{\eta})
+   + \frac{G_c}{c_w}\left( \frac{w(\alpha)}{\ell} + \ell\, |\nabla\alpha|^2 \right).
+
+Here :math:`\pi_0` is the support function of the initial elastic domain
+:math:`S_0`, so prescribing :math:`\pi_0` *is* prescribing the strength surface
+:math:`\partial S_0`. Z3ST implements AT2, :math:`a(\alpha) = (1-\alpha)^2`,
+:math:`w(\alpha) = \alpha^2`, :math:`c_w = 2`.
+
+Three properties follow, and they are what distinguish this route from the
+brittle one:
+
+* **Non-interpenetration is automatic.** :math:`\pi_0` is finite only for
+  :math:`\mathrm{tr}\,\boldsymbol{\eta} \ge 0`, which forces
+  :math:`[\![\boldsymbol{u}]\!]\cdot\boldsymbol{n} \ge 0` on the crack set. No
+  energy split is needed, and the residual stress at :math:`\alpha = 1` is
+  crack-like, :math:`\boldsymbol{\sigma}_R = \kappa \langle \mathrm{tr}\,
+  \boldsymbol{\varepsilon}\rangle_- \boldsymbol{I}`.
+* **The elastic energy is not degraded.** The degradation acts on
+  :math:`\pi_0` alone, so the stress is
+  :math:`\boldsymbol{\sigma} = \partial\psi_e/\partial\boldsymbol{\varepsilon}`
+  evaluated on the elastic strain.
+* **The strength is decoupled from** :math:`\ell`. Nucleation occurs at the
+  prescribed strength regardless of the regularisation length; the cohesive law
+  and the surface energy density are :math:`\ell`-insensitive.
+
+**Volumetric--deviatoric form.** In the isotropic case the eigenstrain enters
+only through two scalars, its trace and the norm of its deviator, so the state
+is :math:`(\boldsymbol{u}, \mathrm{tr}\,\boldsymbol{\eta},
+\|\boldsymbol{\eta}_{dev}\|)`:
+
+.. math::
+
+   \psi_e = \frac{\kappa}{2}\big(\mathrm{tr}\,\boldsymbol{\varepsilon}
+   - \mathrm{tr}\,\boldsymbol{\eta}\big)^2
+   + \mu \big( \|\boldsymbol{\varepsilon}_{dev}\| - \|\boldsymbol{\eta}_{dev}\| \big)^2 .
+
+**Strength surface.** The strength potential is the :math:`r`-norm family,
+selected by ``models.cohesive.r_norm``:
+
+.. math::
+
+   \phi_r\big(\mathrm{tr}\,\boldsymbol{\eta}, \|\boldsymbol{\eta}_{dev}\|\big)
+   = \Big( p_c^{\,r}\, \mathrm{tr}^{\,r}\boldsymbol{\eta}
+   + \tau_c^{\,r}\, \|\boldsymbol{\eta}_{dev}\|^{\,r} \Big)^{1/r},
+
+with :math:`p_c` the critical pressure and :math:`\tau_c` the shear strength.
+For :math:`p \ge 0` the resulting surface is a rectangle for :math:`r = 1`, the
+ellipse :math:`(p/p_c)^2 + (\tau/\tau_c)^2 = 1` for :math:`r = 2`, and the
+Drucker--Prager line :math:`p/p_c + \tau/\tau_c = 1` for :math:`r = \infty`; in
+principal stress space these are a cylinder, an ellipsoid and a cone, each
+unbounded along the negative hydrostatic axis. :math:`\phi_2` and
+:math:`\phi_\infty` are not differentiable at the origin and are regularised
+there by a small constant under the square root, as in the reference
+implementation.
+
+**Strain hardening.** The formulation is well posed only if
+:math:`\ell \le \ell_{ch}/4`, where the characteristic cohesive length is
+:math:`\ell_{ch} = \min_{\sigma \in \partial S_0} G_c / (\mathbb{S}\sigma\cdot\sigma)`.
+Z3ST evaluates :math:`\ell_{ch}` in closed form per :math:`r` and **raises** if
+the condition is violated, rather than solving a problem with no unique
+sub-problem solution. The ratio must not be made arbitrarily small either: a
+homogeneous state is unstable, and cracks therefore nucleate, only when
+:math:`\ell/\ell_{ch}` is large enough.
+
+**Discretisation and solution.** The displacement and the phase field are
+linear Lagrange; both eigenstrain scalars are :math:`DG_0`, one degree of
+freedom per element, matching the constant strain within a linear element. The
+displacement and the eigenstrain share one mixed space and are solved together.
+Each staggered iteration is one alternate-minimisation sweep: minimise with
+respect to :math:`(\boldsymbol{u}, \boldsymbol{\eta})` at fixed :math:`\alpha`,
+then with respect to :math:`\alpha` at fixed :math:`(\boldsymbol{u},
+\boldsymbol{\eta})`. Both sub-problems are convex, so the sweep is an energy
+descent. Both are **bound-constrained**, and are solved as variational
+inequalities with the PETSc ``vinewtonrsls`` solver:
+:math:`\mathrm{tr}\,\boldsymbol{\eta} \ge 0` and
+:math:`\|\boldsymbol{\eta}_{dev}\| \ge 0` for the first,
+:math:`\alpha \ge \alpha_p` --- irreversibility --- for the second. Unlike the
+brittle route, irreversibility is thus a genuine constraint on the solve rather
+than a clamp applied after it. The line search is PETSc's ``bisection``
+algorithm (PETSc :math:`\ge` 3.23), which exploits the convexity; a plain
+Newton line search stalls on the :math:`r = \infty` potential.
+
+**Configuration.** The cohesive route requires ``models.mechanical: true`` and
+replaces the displacement-only mechanical step; it cannot be combined with
+``damage``, ``plasticity`` or ``creep``. Card keys are ``Gc``, ``p_c`` and
+``tau_c``; note that ``p_c`` and ``tau_c`` are read directly and are *not*
+derived from :math:`\ell` through the :math:`G_c \leftrightarrow \sigma_c`
+identities the brittle model uses.
+
+.. code-block:: yaml
+
+   models:
+     mechanical: true
+     cohesive:
+       ell: 2.5e-5        # regularisation length (m)
+       r_norm: "2"        # "1", "2" or "inf"; ignored in 1D
+
+The phase field is stored in the same ``Damage`` field as the brittle model, so
+output, damage Dirichlet conditions and the adaptive-time-step snapshot apply
+unchanged.
+
+Implemented in :class:`z3st.models.cohesive_model.CohesiveModel`.
+
+Reference case: ``cases/verification/cohesive/bar_1D``.
+
 .. _gap-conductance:
 
 Gap Conductance Model

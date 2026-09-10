@@ -25,6 +25,7 @@ from z3st.models.contact_model import ContactModel
 from z3st.models.cracking_model import CrackingModel
 from z3st.models.creep_model import CreepModel
 from z3st.models.damage_model import DamageModel
+from z3st.models.cohesive_model import CohesiveModel
 from z3st.models.gap_model import GapModel
 from z3st.models.mechanical_model import MechanicalModel
 from z3st.models.thermal_model import ThermalModel
@@ -34,7 +35,7 @@ from z3st.models.porosity_migration_model import PorosityMigrationModel
 
 
 class Spine(
-    Config, FiniteElementSetup, Solver, ThermalModel, MechanicalModel, GapModel, ContactModel, DamageModel, ClusterDynamicsModel, PlasticityModel, CreepModel, CrackingModel, PorosityMigrationModel
+    Config, FiniteElementSetup, Solver, ThermalModel, MechanicalModel, GapModel, ContactModel, DamageModel, CohesiveModel, ClusterDynamicsModel, PlasticityModel, CreepModel, CrackingModel, PorosityMigrationModel
 ):
     """Main Z3ST simulation driver."""
 
@@ -75,6 +76,8 @@ class Spine(
             ContactModel.__init__(self)
         if self.on.get("damage", False):
             DamageModel.__init__(self)
+        if self.on.get("cohesive", False):
+            CohesiveModel.__init__(self)
         if self.on.get("cluster", False):
             ClusterDynamicsModel.__init__(self)
         if self.on.get("plasticity", False):
@@ -214,6 +217,21 @@ class Spine(
             else:
                 print(f"  → Gc not defined for {name}")
 
+            # Cohesive fracture prescribes the strength surface directly, so
+            # p_c/tau_c are read from the card and never derived from lc.
+            if self.on.get("cohesive", False) and "p_c" in mat:
+                if "_Gc_func" in mat:
+                    raise ValueError(
+                        f"Material '{name}': the cohesive model needs a numeric Gc "
+                        f"(the strain-hardening check ell <= ell_ch/4 is evaluated "
+                        f"on scalars); a symbolic Gc is not supported."
+                    )
+                for key in ("Gc", "p_c", "tau_c"):
+                    if key in mat:
+                        mat[key] = float(mat[key])
+                print(f"  → cohesive strength: p_c = {mat['p_c']:.3e} Pa"
+                      + (f", tau_c = {mat['tau_c']:.3e} Pa" if "tau_c" in mat else ""))
+
             dmg_type = getattr(self, "dmg_cfg", {}).get("type")
 
             if lc:
@@ -325,10 +343,11 @@ class Spine(
                         f"Material '{name}': creep is only supported with the "
                         f"'lame' constitutive route (got '{constitutive_mode}')."
                     )
-                if self.on.get("damage", False) or self.on.get("plasticity", False):
+                if (self.on.get("damage", False) or self.on.get("plasticity", False)
+                        or self.on.get("cohesive", False)):
                     raise ValueError(
-                        "Creep cannot yet be combined with damage or plasticity "
-                        "in the same run."
+                        "Creep cannot yet be combined with damage, plasticity or "
+                        "cohesive fracture in the same run."
                     )
                 print(f"  → creep: Norton, A0 = {mat['creep_A0']:.3e} Pa^-n/s, "
                       f"n = {mat['creep_n']:.2f}, Q = {mat['creep_Q']:.3e} J/mol")
@@ -355,8 +374,14 @@ class Spine(
             self.boundary_conditions = yaml.safe_load(f)
 
         if self.on.get("thermal", False): self.set_thermal_boundary_conditions(self.V_t)
-        if self.on.get("mechanical", False): self.set_mechanical_boundary_conditions(self.V_m)
-        if self.on.get("damage", False): self.set_damage_boundary_conditions(self.V_d)
+        # Under the cohesive route the displacement lives in the first block of
+        # the mixed space, so its BCs must be built on that subspace.
+        if self.on.get("mechanical", False):
+            self.set_mechanical_boundary_conditions(
+                self.W.sub(0) if self.on.get("cohesive", False) else self.V_m
+            )
+        if self.on.get("damage", False) or self.on.get("cohesive", False):
+            self.set_damage_boundary_conditions(self.V_d)
 
     def initialize_fields(self):
         print(f"[spine.initialize_fields]")
@@ -426,6 +451,21 @@ class Spine(
             self.D.x.array[:] = 0.0  # undamaged initial state
             self.H = dolfinx.fem.Function(self.Q, name="CrackDrivingForce")
             self.H.x.array[:] = 0.0
+
+        # Cohesive fracture: the mixed (u, eigenstrain) state and its phase
+        # field. self.u stays allocated above and is kept as the mirror of the
+        # displacement block, so output and get_results are unaffected.
+        if self.on.get("cohesive", False):
+            print("\nInitializing the cohesive state (u, eigenstrain, alpha)...")
+            self.w = dolfinx.fem.Function(self.W, name="CohesiveState")
+            self.w.x.array[:] = 0.0
+            # Parent-space dof indices of the displacement block, for the
+            # mirror into self.u after every solve.
+            self._w_u_dofs = np.asarray(
+                self.W.sub(0).collapse()[1], dtype=np.int32).ravel()
+            self.D = dolfinx.fem.Function(self.V_d, name="Damage")
+            self.D.x.array[:] = 0.0
+            self.check_strain_hardening()
 
         # CD variables
         if self.on.get("cluster", False):
@@ -784,7 +824,7 @@ class Spine(
               f"fuel-avg FGR = {fgr:.4f}")
 
     _SNAPSHOT_FIELDS = (
-        "T", "u", "D", "H", "burnup", "gas_swelling", "c", "c_n",
+        "T", "u", "w", "D", "H", "burnup", "gas_swelling", "c", "c_n",
         "p", "ep", "p_n", "ep_n",
         "porosity", "porosity_n",
     )  # dolfinx Functions
@@ -801,6 +841,7 @@ class Spine(
         present, per active physics):
 
         - primary fields T, u, D and the crack-driving history H;
+        - the mixed cohesive state w = (u, eigenstrain), when that route is on;
         - the burnup accumulator and the cluster pair c / c_n;
         - the plasticity history p, ep, p_n, ep_n;
         - the per-material creep dicts eps_cr and _dgamma0;
@@ -903,8 +944,21 @@ class Spine(
         else:
             self.strain = None
 
+        if self.on.get("cohesive", False):
+            # tr_eta / dev_eta, not to be confused with the material's p_c.
+            u_coh, tr_eta, dev_eta = self.split_state(self.w)
+
         for name, mat in self.materials.items():
-            if self.on.get("mechanical", False):
+            if self.on.get("cohesive", False):
+                # The cohesive stress derives from the undegraded elastic energy
+                # evaluated on the elastic strain (eps - eta); the degradation
+                # acts on the strength potential, not here.
+                self.energy_density[name] = self.psi_cohesive_elastic(
+                    self.epsilon(u_coh), tr_eta, dev_eta, mat
+                )
+                self.stress_mech[name] = self.sigma_cohesive(
+                    u_coh, tr_eta, dev_eta, mat)
+            elif self.on.get("mechanical", False):
                 # Elastic energy uses the elastic strain (eps - alpha*(T - T_ref)*I)
                 # so uniform thermal expansion does not appear as stored elastic energy.
                 T_field = getattr(self, "T", None) if self.on.get("thermal", False) else None
