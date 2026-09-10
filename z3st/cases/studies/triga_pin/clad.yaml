@@ -1,0 +1,23 @@
+name: SS-304
+
+# Guaina in acciaio austenitico dell'elemento 103/104.
+# Proprietà da z3st/materials/austenitic_steel.yaml (AISI 304/316), tranne la
+# densità, presa dal modello OpenMC del nocciolo di Pavia (Cladding SS).
+#
+# I modelli che contano per la tesi — indurimento e infragilimento da
+# irraggiamento, swelling in funzione di dpa, creep — non sono qui: vanno
+# aggiunti nella fase 1 con la loro fonte e il loro intervallo di validità.
+
+rho: 8030.0         # (kg/m³) modello OpenMC (Cladding SS)
+
+k: 16.0             # (W/(m·K))
+cp: 500.0           # (J/(kg·K))
+E: 1.93e11          # (Pa)
+nu: 0.30            # (-)
+alpha: 1.6e-5       # (1/K)
+
+mu_gamma: 25.0      # (1/m) coefficiente di attenuazione gamma negli acciai
+gamma_heating: 0.0  # (W/m³) [TBC] il riscaldamento gamma della guaina non è tallyato
+
+T_ref: 293.15       # (K)
+T_initial: 313.15   # (K)

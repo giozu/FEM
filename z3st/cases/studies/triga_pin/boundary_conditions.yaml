@@ -1,0 +1,60 @@
+thermal:
+  fuel:
+  - type: Neumann
+    region: bottom_1
+    flux: 0.0
+
+  - type: Neumann
+    region: top_1
+    flux: 0.0
+
+  - type: Neumann
+    region: inner_1        # superficie della barretta di Zr, adiabatica.
+    flux: 0.0              #   [TBC] la barretta conduce e non genera: trattarla
+                           #   come adiabatica sovrastima leggermente la
+                           #   temperatura centrale.
+
+  - type: Robin
+    region: lateral_1
+    pair: inner_2
+
+  clad:
+  - type: Neumann
+    region: bottom_2
+    flux: 0.0
+
+  - type: Neumann
+    region: top_2
+    flux: 0.0
+
+  - type: Robin
+    region: inner_2
+    pair: lateral_1
+
+  - type: Robin
+    region: outer_2
+    h_conv: 1.0e4          # (W/(m²K)) convezione naturale in piscina. [TBC]
+                           #   Con q'' = 7906/(2*pi*0.0188) = 6.7e4 W/m² questo
+                           #   valore dà un salto di film di ~7 K. Va sostituito
+                           #   con una correlazione (o col SAR di Pavia): in
+                           #   ebollizione nucleata sottoraffreddata h è molto
+                           #   più alto e il salto di film sparisce.
+    T_ext: 313.15          # (K) piscina a 40 °C. [TBC] valore operativo da Pavia.
+
+mechanical:
+  fuel:
+  - type: Clamp_x
+    region: inner_1        # u_r = 0 sulla superficie della barretta di Zr.
+                           #   [TBC] assume la barretta infinitamente rigida.
+
+  - type: Clamp_y
+    region: bottom_1       # u_z = 0
+
+  clad:
+  - type: Clamp_y
+    region: bottom_2       # u_z = 0
+
+  - type: Neumann
+    region: outer_2
+    traction: -1.5e+5      # (Pa) idrostatica della piscina + atmosfera.
+                           #   [TBC] 5 m di battente d'acqua danno ~1.5 bar assoluti.

@@ -1,0 +1,46 @@
+name: U-ZrH-103
+fissile: true
+
+# Combustibile a idruro di uranio-zirconio (U0.31Zr)H1.6, elemento 103/104 del
+# TRIGA Mark II di Pavia.
+#
+# Proprietà termomeccaniche dalla Tabella 3 di
+#   Simnad, M. T.; Konings, R. J. M. — Uranium-zirconium hydride fuel,
+#   Comprehensive Nuclear Materials, Vol. 3, §3.12, Elsevier, 2012,
+# che a sua volta le riprende da GA Technologies, Uranium-zirconium hydride
+# TRIGA LEU fuel, IAEA-TECDOC-643 Vol. 4, Appendice I-7. Validità 300 < T < 1000 K.
+
+# Profilo assiale di potenza dal modello OpenMC del nocciolo di Pavia.
+# Generato da z3st/coupling/openmc/axial_power.py — non modificare a mano.
+# statepoint : statepoint.300.h5 (300 batch, 120k particelle, k = 1.04447 +/- 0.00020)
+# elemento   : (x, y) = (0, 8.2) cm, combustibile attivo 8.81 -> 46.91 cm
+# fattore di picco assiale 1.302, sigma per riga <= 0.82 %
+axial_profile: materials.fuel_profiles.tabulated_axial
+axial_table_z: [0.00440, 0.01540, 0.02640, 0.03740, 0.04840, 0.05940, 0.07040, 0.08140, 0.09240, 0.10340, 0.11440, 0.12540, 0.13640, 0.14740, 0.15840, 0.16940, 0.18040, 0.19140, 0.20240, 0.21340, 0.22440, 0.23540, 0.24640, 0.25740, 0.26840, 0.27940, 0.29040, 0.30140, 0.31240, 0.32340, 0.33440, 0.34540, 0.35640, 0.36740, 0.37840]
+axial_table_f: [0.5367, 0.5915, 0.6707, 0.7362, 0.8002, 0.8626, 0.9277, 0.9948, 1.0355, 1.0932, 1.1390, 1.1686, 1.2059, 1.2501, 1.2674, 1.2734, 1.2890, 1.3021, 1.2913, 1.2886, 1.2669, 1.2359, 1.2080, 1.1776, 1.1390, 1.1042, 1.0426, 0.9987, 0.9332, 0.8615, 0.8009, 0.7291, 0.6589, 0.5877, 0.5312]
+
+# Nessun profilo radiale: la mesh cartesiana del nocciolo non risolve la
+# depressione di flusso dentro il combustibile. Serve una tally cilindrica
+# lato OpenMC. Finché non c'è, f(r) = 1.
+
+rho: 5950.0         # (kg/m³) densità del modello OpenMC del nocciolo (Fuel103)
+
+k: 18.0             # (W/(m·K)) Tabella 3, 18 +/- 1, costante nell'intervallo
+cp: 322.0           # (J/(kg·K)) Tabella 3, Cp(T) = (25 + 4.7x) + (0.31 + 2.01x)T/100
+                    #   + (1.9 + 6.4x)/T²·1e-5 J/(mol·K) con x = H/Zr = 1.6,
+                    #   valutata a 600 K e divisa per M = 166.6 g/mol.
+                    #   Non entra nell'analisi stazionaria; da rendere Cp(T) per il transitorio.
+
+E: 130.0e9          # (Pa) Tabella 3
+nu: 0.32            # (-)  Tabella 3
+
+alpha: 1.628e-5     # (1/K) Tabella 3, alpha(T) = 7.4e-6 (1 + 2e-3 T), valutata a 600 K.
+                    #   Raddoppia fra 300 e 1000 K: per lo stato di sforzo serve
+                    #   la forma dipendente da T, che oggi z3st non risolve per alpha.
+
+# Non usati qui ma necessari per la gamba guaina:
+#   dilatazione da idrogeno  (dL/L)_H/Zr = 0.027 (H/Zr - 1.6)   Tabella 3
+#   sforzo di rottura        200 MPa (trazione), 100 MPa (compressione)  Tabella 3
+
+T_ref: 293.15       # (K)
+T_initial: 313.15   # (K) temperatura della piscina

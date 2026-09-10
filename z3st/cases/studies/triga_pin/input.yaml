@@ -1,0 +1,76 @@
+# --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
+# Z3ST: An open-source FEniCSx framework for thermo-mechanical analysis
+# Author: Giovanni Zullo
+# --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
+#
+# TRIGA Mark II di Pavia, elemento 103/104: campo termico e stato di sforzo
+# stazionari a 250 kW, con il profilo assiale di potenza preso dal modello
+# OpenMC del nocciolo.
+#
+# Nocciolo di Pavia: 250 kW nominali, 83 elementi di combustibile — 34 del tipo
+# 103 con guaina in acciaio negli anelli interni, 49 del tipo 101 con guaina in
+# alluminio negli anelli E e F. Nocciolo attivo 45.7 cm di diametro, 35.6 cm di
+# altezza. Fonte: Borio di Tigliole et al., Prog. Nucl. Energy 70 (2014) 249-255,
+# DOI 10.1016/j.pnucene.2013.10.001.
+
+mesh_path: mesh.msh
+geometry_path: geometry.yaml
+boundary_conditions_path: boundary_conditions.yaml
+
+materials:
+  fuel: fuel.yaml
+  clad: clad.yaml
+
+regime: axisymmetric
+
+solver_settings:
+  max_iters: 60
+  relax_T: 0.9
+  relax_u: 0.3
+  relax_adaptive: true
+  relax_aitken: true
+
+models:
+  thermal: true
+  mechanical: true
+  gap_conductance:
+    type: Gas
+    value: 15.8            # (W/(m·K))/m equivalente He
+    relax: 0.5
+    # [TBC] il 103 è progettato senza gap nominale fra pastiglia e guaina: nel
+    # modello OpenMC r_fuel = r_clad_inner = 1.82 cm. Qui il gap geometrico è
+    # zero e la conduttanza è quella di un contatto imperfetto, non di un
+    # meato a gas. Da sostituire con un modello di contatto quando si conosce
+    # lo stato di accoppiamento reale.
+
+mechanical:
+  solver: linear
+  linear_solver: direct_mumps
+  rtol: 1.0e-4
+  stag_tol: 1.0e-4
+  convergence: rel_norm
+
+thermal:
+  solver: linear
+  linear_solver: direct_mumps
+  rtol: 1.0e-5
+  stag_tol: 1.0e-5
+  convergence: rel_norm
+  analysis: stationary
+
+# Potenza lineare dell'elemento: 250 kW / 83 elementi / 0.381 m = 7.91 kW/m.
+# È la media del nocciolo. Gli elementi 103 stanno negli anelli interni e
+# lavorano sopra la media: manca il fattore di picco radiale, che va preso da
+# una tally di potenza per elemento (fission-q-prompt sulla cella di
+# combustibile, normalizzata con heating-local). [TBC]
+lhr:
+- 7906.0
+- 7906.0
+time:
+- 0.0
+- 1.0
+n_steps:
+- 1
+
+output:
+  format: xdmf
