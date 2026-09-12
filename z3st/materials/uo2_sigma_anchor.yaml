@@ -1,0 +1,26 @@
+# --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
+# UO2, strength-anchored phase-field card for the bubble-fracture cases
+# (z3st/cases/UO2_PFF_bubbles_2D_xy). Companion to uo2_gc_anchor.yaml: same
+# elastic constants, the other end of the calibration.
+# --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
+name: UO2
+
+# Same E and nu as uo2_gc_anchor.yaml, pinned for the same reason: Gc is derived
+# from sigma_c and E at run time, so E must not move under the case.
+E: 358.0e9          # (Pa) - Young's modulus
+nu: 0.23            # (-)  - Poisson's ratio
+
+k: 5.0              # (W/(m*K)) - Thermal conductivity
+cp: 280.0           # (J/(kg*K)) - Specific heat capacity
+rho: 10970.0        # (kg/m3) - Density
+
+alpha: 1.0e-5       # (1/K)
+
+# Here sigma_c is the physical tensile strength of UO2, nominal 150 MPa in the
+# [100, 200] MPa envelope. Gc follows: (8/3)*lc*sigma_c^2/E = 0.335 J/m2 for AT1 at
+# lc = 2e-6 m. The cases using this card report p_crit against the same envelope.
+sigma_c: 150.0e+6   # (Pa)
+
+# Isothermal: T_ref = T_initial, so the thermal eigenstrain is zero by construction.
+T_ref: 1023.15      # (K)
+T_initial: 1023.15  # (K)

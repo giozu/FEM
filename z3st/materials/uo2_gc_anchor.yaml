@@ -1,0 +1,28 @@
+# --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
+# UO2, toughness-anchored phase-field card for the bubble-fracture cases
+# (z3st/cases/UO2_PFF_bubbles_2D_xy). See that directory's CALIBRATION notes.
+# --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
+name: UO2
+
+# E and nu are pinned here, not inherited from the shared uo2.yaml: sigma_c below
+# is computed from this E, so the two must not drift apart.
+E: 358.0e9          # (Pa) - Young's modulus
+nu: 0.23            # (-)  - Poisson's ratio
+
+k: 5.0              # (W/(m*K)) - Thermal conductivity
+cp: 280.0           # (J/(kg*K)) - Specific heat capacity
+rho: 10970.0        # (kg/m3) - Density
+
+alpha: 1.0e-5       # (1/K)
+
+# sigma_c is not the tensile strength of UO2. It is the value that makes the AT1
+# identity Gc = (8/3)*lc*sigma_c^2/E return Gc = 2.645 J/m2 at lc = 2e-6 m, which
+# is the grain-boundary toughness K_IC = 1.0 MPa.m^0.5 converted by
+# Gc = K_IC^2 (1-nu^2)/E. spine.py derives Gc from sigma_c, so the anchor has to be
+# declared this way round. Valid only for AT1 at lc = 2e-6 m: AT2 uses a different
+# identity and would return Gc = 9.4 J/m2 from the same number.
+sigma_c: 421.5e+6   # (Pa)
+
+# Isothermal: T_ref = T_initial, so the thermal eigenstrain is zero by construction.
+T_ref: 1023.15      # (K)
+T_initial: 1023.15  # (K)

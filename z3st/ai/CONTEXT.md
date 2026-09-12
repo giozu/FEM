@@ -625,7 +625,7 @@ The suite is driven by `z3st/cases/non-regression_local.sh` (local) and `non-reg
   the ancestor of the phase-field cavity family in §15b.
 - `regression/two_elliptical_cavities_2D` — pressure-driven, micron units, GB-weakened
   `Gc(y)`, carries a blessed gold. It shares its leaf name with
-  `benchmarks/damage/two_elliptical_cavities_2D` in §15b; the two are different cases with
+  `benchmarks/damage/two_elliptical_cavities_tension_2D` in §15b; the two are different cases with
   different units and loading.
 - `verification/mechanics/spherical_cavity`
 
@@ -640,7 +640,7 @@ floor, and the measured results.
 |---|---|---|---|---|
 | `benchmarks/damage/elliptical_cavity_tension_2D` | AT2/Miehe | 0.5 µm | remote `Dirichlet_y` ramp | remote stress at crack initiation |
 | `benchmarks/damage/elliptical_cavity_pressurized_2D` | AT2/Miehe | 0.5 µm | cavity pressure ramp | critical cracking pressure |
-| `benchmarks/damage/two_elliptical_cavities_2D` | AT2/Miehe | 0.5 µm | remote tension | peak macroscopic σ_yy |
+| `benchmarks/damage/two_elliptical_cavities_tension_2D` | AT2/Miehe | 0.5 µm | remote tension | peak macroscopic σ_yy |
 | `benchmarks/damage/bubble_fracture_2D` | AT1/Amor | 0.5 µm | cavity pressure ramp (80 MPa ceiling) | max damage attained |
 | `benchmarks/damage/spherical_void_tension_3D` | AT1/Amor | 1.0 µm | remote `Dirichlet_z` ramp, 3D RVE | peak σ_zz, strain at peak, softening ratio |
 
@@ -657,6 +657,39 @@ written on the card.
 Parametric studies (`study_theta.py`, `study_jiang.py`, `study_pressure_sweep.py`) run each
 sample in an isolated copy under `.sweep/` via `z3st/utils/case_sweep.py`; they must never
 write the tracked case files.
+
+**15c — UO₂ lenticular-bubble phase-field fracture** (`cases/UO2_PFF_bubbles_2D_xy/`,
+added 2026-09-12 from tag `baptiste-final-2026-09`)
+
+A second bubble family, from the 2026 internship. It is **not** an extension of §15b and
+its numbers are not comparable with it: different geometry (lentille, i.e. two circular
+arcs meeting at a corner, not an ellipse), different ℓ (2 µm), and its own pinned cards.
+
+| Study | What it varies | Headline |
+|---|---|---|
+| `theta_sweep/` | semi-dihedral angle, 30–71° | p_crit 556.6–571.6 MPa, 2.7 % over the range |
+| `periodic_row/` | bubble spacing `Lx`, 7 points | p_crit 616 → 301 MPa as the ligament thins |
+| `polydisperse/` | size ratio at fixed ligament | a mixed pair is stronger than a uniform one |
+| `pcrit_physical_anchor/` | ramp resolution, 20/150/201 steps | ramp-rate independence check |
+
+Two calibrations, both pinning `E = 358 GPa`, `ν = 0.23` so they do not move when the
+shared `uo2.yaml` changes:
+
+- `materials/uo2_gc_anchor.yaml` — toughness anchor. `σ_c = 421.5 MPa` is not a strength;
+  it is the value that makes the AT1 identity return `Gc = 2.645 J/m²` from
+  `K_IC = 1.0 MPa·m^0.5` at `lc = 2 µm`. Valid for AT1 at that `lc` only.
+- `materials/uo2_sigma_anchor.yaml` — strength anchor, `σ_c = 150 MPa` physical,
+  `Gc = 0.335 J/m²` derived.
+
+The corner of a lentille is a wedge singularity (`σ ~ r^-0.45`), not a curvature-controlled
+concentration, so there is no `ρ/h` mesh criterion here; the constraint is `h ≤ lc/4`.
+Each study's `README.md` carries its own results and caveats.
+
+**The headline numbers above are tag-side and are known to be high.** Every case here is
+AT1 + `amor`, and the tag predates `dbb6fae` (2026-07-07), which corrected
+`psi_amor_split` to use Amor's bulk modulus instead of `lambda`. The one case re-run on
+develop (`pcrit_physical_anchor`) came out 5.3 % lower. The others have not been re-run;
+none may be blessed as a gold until they are.
 
 **16 — Multi-body coupling**
 - `verification/thermal/coaxial_gap_3D`
@@ -932,7 +965,11 @@ Two threads, both phase-field, on calibrations that must not be mixed:
    `bubble_fracture_2D` went from zero damage to complete cracking when l went
    2.0 -> 0.5 um. No gold should be blessed until convergence is shown.
 
-2. Case-14 thermal shock — §11 below, on the shared `uo2.yaml` at sigma_c = 1 GPa.
+2. Lenticular-bubble fracture — the `UO2_PFF_bubbles_2D_xy` family in §15c, on its own
+   pinned cards at l = 2 um. Separate geometry and calibration from §15b; the two
+   families' numbers are not comparable. Each study's README holds its results.
+
+3. Case-14 thermal shock — §11 below, on the shared `uo2.yaml` at sigma_c = 1 GPa.
 
 ---
 

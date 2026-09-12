@@ -27,7 +27,10 @@ written on the card. So `σ_c` is the only quantity we calibrate; `G_c` follows.
 | Quantity | Value | Basis |
 |---|---|---|
 | `σ_c` | **150 MPa nominal, [100, 200] MPa envelope** | UO₂ tensile strength; the acceptance criterion in the internship plan |
-| `E` | 358–385 GPa | 358 = z3st `uo2.yaml`; 385 = Jiang 2020 |
+| `E` | 358–385 GPa | 385 = Jiang 2020, used by `uo2_jiang.yaml`; 358 = the value
+z3st's shared `uo2.yaml` carried until commit 3dee7aa, kept by the pinned
+`uo2_gc_anchor.yaml` / `uo2_sigma_anchor.yaml`. The shared card now reads
+205 GPa / ν = 0.32, so it must not be used for any case in this family. |
 | `ℓ` | per case, subject to `ℓ ≥ 4h` | mesh resolution floor |
 | `G_c` | **derived, never set by hand** | AT1/AT2 identity above |
 
@@ -94,7 +97,7 @@ The five cases deliberately run **two** formulations. This is not drift:
 |---|---|---|---|
 | `elliptical_cavity_tension_2D` | AT2 | miehe | reproduces Jiang 2020; AT2 has no elastic threshold, so damage onset is smooth and the full stress-strain curve is resolved |
 | `elliptical_cavity_pressurized_2D` | AT2 | miehe | same geometry as above, load case swapped -- must share its formulation to be comparable |
-| `two_elliptical_cavities_2D` | AT2 | miehe | cavity-interaction study in the same family |
+| `two_elliptical_cavities_tension_2D` | AT2 | miehe | cavity-interaction study in the same family |
 | `bubble_fracture_2D` | AT1 | amor | AT1's sharp elastic threshold is the right model for asking *does this crack at all* below a bound |
 | `spherical_void_tension_3D` | AT1 | amor | 3D RVE; AT1 is better behaved in bulk/compression |
 
@@ -138,7 +141,7 @@ and AT2 imply different G_c for the same σ_c.
 |---|---|---|---|---|---|
 | `elliptical_cavity_tension_2D` | AT2 | 0.5 µm | 0.123 | **0.277** | 0.493 J/m² |
 | `elliptical_cavity_pressurized_2D` | AT2 | 0.5 µm | 0.123 | **0.277** | 0.493 J/m² |
-| `two_elliptical_cavities_2D` | AT2 | 0.5 µm | 0.123 | **0.277** | 0.493 J/m² |
+| `two_elliptical_cavities_tension_2D` | AT2 | 0.5 µm | 0.123 | **0.277** | 0.493 J/m² |
 | `bubble_fracture_2D` | AT1 | 0.5 µm | 0.035 | **0.078** | 0.139 J/m² |
 | `spherical_void_tension_3D` | AT1 | 1.0 µm | 0.069 | **0.156** | 0.277 J/m² |
 
@@ -150,13 +153,13 @@ and AT2 imply different G_c for the same σ_c.
 |---|---|---|---|---|
 | `elliptical_cavity_tension_2D` | 0.050 µm | 0.20 µm | 0.5 µm | OK |
 | `elliptical_cavity_pressurized_2D` | 0.050 µm | 0.20 µm | 0.5 µm | OK |
-| `two_elliptical_cavities_2D` | 0.125 µm | 0.50 µm | 0.5 µm | OK |
+| `two_elliptical_cavities_tension_2D` | 0.125 µm | 0.50 µm | 0.5 µm | OK |
 | `bubble_fracture_2D` | 0.125 µm | 0.50 µm | 0.5 µm | OK |
 | `spherical_void_tension_3D` | 0.250 µm | 1.00 µm | 1.0 µm | OK |
 
 Three of these sit exactly at `ℓ = 4h`, which satisfies the rule with no margin. A
 convergence check at `ℓ = 6h` or `8h` is worth running before blessing anything whose
-value moved — see the note on `two_elliptical_cavities_2D` below.
+value moved — see the note on `two_elliptical_cavities_tension_2D` below.
 
 ## Measured results (run 2026-08-03, sigma_c = 150 MPa)
 
@@ -165,12 +168,12 @@ value moved — see the note on `two_elliptical_cavities_2D` below.
 | `elliptical_cavity_pressurized_2D` | critical cracking pressure | **179.06 MPa** (step 294, max D = 0.586) | 177 MPa — **1.2% apart** |
 | `spherical_void_tension_3D` | peak macroscopic σ_zz | **116.6 MPa** at E_zz = 3.40e-4, softening → 0.0005 | (case had no metric) |
 | `elliptical_cavity_tension_2D` | remote stress at initiation | **59.03 MPa** (peak σ_yy 82.66, informational) | 188 MPa — **reconciled**: local tip stress, see below |
-| `two_elliptical_cavities_2D` | peak macroscopic σ_yy | **53.65 MPa**, max D = 1.0 | **116.52 MPa** |
+| `two_elliptical_cavities_tension_2D` | peak macroscopic σ_yy | **53.65 MPa**, max D = 1.0 | **116.52 MPa** |
 | `bubble_fracture_2D` | max damage attained | **1.0000** — cracks at 77.4 MPa (D ≥ 0.5) | — |
 
 ### The mesh floor was inflating the two-cavity strength by 2.2x
 
-`two_elliptical_cavities_2D` dropped from 116.52 to 53.65 MPa. Two things changed at
+`two_elliptical_cavities_tension_2D` dropped from 116.52 to 53.65 MPa. Two things changed at
 once — the mesh (`h_cavity` 0.15 → 0.125 µm, fixing the `ℓ ≥ 4h` violation) and the
 material repoint (shared `uo2.yaml` → `uo2_jiang.yaml`, E 358 → 385 GPa with `G_c`
 re-derived) — so the drop was initially ambiguous.
@@ -216,10 +219,19 @@ in the realistic range" was an ℓ artefact and does **not** hold. The bubble cr
 Recorded as-is for Baptiste to take forward. Note the crossing sits only 3% below the
 80 MPa ramp ceiling, so confirming it with a wider ramp should come before any blessing.
 
-### The 188 MPa is reconciled — it is a local tip stress
+### Where the 188 MPa comes from
 
-`compare_tip_stress.py`, run 2026-08-03 against both cases' fresh output, probing each
-case at *its own* max(Damage) location at standoffs in multiples of ℓ:
+The 188.2 MPa figure comes from the internship report (Table V, Figure 5), where it is
+the peak of the macroscopic σ_yy–ε_yy curve for the Jiang case B geometry — a
+macroscopic rupture stress, not a local one. That run used Jiang's own parameters,
+E = 385 GPa with an active `Gc: 2.0 J/m²`, AT2/Miehe, which at ℓ = 0.5 µm implies
+σ_c = 403 MPa (the row in the table above). The 82.66 MPa measured here is the same
+quantity after the repoint to σ_c = 150 MPa. The two numbers are one measurement at two
+calibrations; the drop is the repoint, not a change of probe location.
+
+This matters because the coincidence below is easy to misread. `compare_tip_stress.py`,
+run 2026-08-03 against both cases' fresh output, probing each case at its own
+max(Damage) location at standoffs in multiples of ℓ, happens to return ~190 MPa:
 
 | | tension | pressure |
 |---|---|---|
@@ -231,11 +243,12 @@ case at *its own* max(Damage) location at standoffs in multiples of ℓ:
 | local σ_yy @ 1.0 ℓ | 173.31 MPa | 94.15 MPa |
 | raw nodal value | 302.69 MPa (singular) | 93.87 MPa |
 
-**Baptiste's 188 MPa is the local σ_yy at roughly a half-ℓ standoff from the tip
-(189.99 MPa), not a remote stress.** With the remote initiation stress at 59.03 MPa that
-is a stress-concentration factor of 3.22. The two figures describe the same event
-measured in different places; neither is wrong, and both should be quoted with their
-location.
+The local σ_yy at a half-ℓ standoff (189.99 MPa) is numerically close to the report's
+188.2 MPa, but they are different quantities and the agreement is a coincidence: one is
+a macroscopic curve peak at σ_c = 403 MPa, the other a local tip stress at
+σ_c = 150 MPa. What the probe does establish is the concentration factor at this
+calibration: 189.99 MPa locally against 59.03 MPa remotely, i.e. 3.22. Quote either
+number with its calibration and its measurement location.
 
 Two of his claims are confirmed exactly:
 
@@ -260,7 +273,7 @@ The right comparator is ψ⁺ itself.
 |---|---|---|
 | `elliptical_cavity_tension_2D` | `pass_fail_check` present, reference = 0.0 | reference is a placeholder, not a gold |
 | `elliptical_cavity_pressurized_2D` | critical cracking pressure at max(D) ≥ 0.5 | |
-| `two_elliptical_cavities_2D` | `pass_fail_check` present | blocked on the mesh floor |
+| `two_elliptical_cavities_tension_2D` | `pass_fail_check` present | blocked on the mesh floor |
 | `bubble_fracture_2D` | `pass_fail_check` present | |
 | `spherical_void_tension_3D` | **none — emits no `non-regression.json`** | see below |
 
@@ -315,7 +328,7 @@ Recorded so they are not re-litigated. Each is implemented in the cases.
 ## Still open
 
 - **Convergence margin.** Three cases sit exactly at `ℓ = 4h`. Given how far
-  `two_elliptical_cavities_2D` moved when its floor was fixed (116.52 → 53.65 MPa), a
+  `two_elliptical_cavities_tension_2D` moved when its floor was fixed (116.52 → 53.65 MPa), a
   check at `ℓ = 6h`/`8h` should precede blessing that case.
 - **Blessing.** No golds written. `elliptical_cavity_pressurized_2D` (179.06 MPa,
   reproducing Baptiste's 177 MPa to 1.2%) is the strongest candidate.
