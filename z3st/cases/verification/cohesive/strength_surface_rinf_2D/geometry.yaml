@@ -1,0 +1,12 @@
+name: cohesive_strength_surface_2d
+geometry_type: rect
+
+Lx: 1.0e-3
+Ly: 1.0e-3
+
+labels:
+  bottom: 1
+  right: 2
+  top: 3
+  left: 4
+  block: 5

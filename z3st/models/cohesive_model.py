@@ -101,8 +101,9 @@ class CohesiveModel:
         # simply spend its iteration budget oscillating at that floor. The
         # outer staggered loop is the accuracy gate, so the budget stays small.
         self.coh_cfg.setdefault("snes_atol", 1e-8)
-        self.coh_cfg.setdefault("snes_rtol", 1e-6)
+        self.coh_cfg.setdefault("snes_rtol", 1e-5)
         self.coh_cfg.setdefault("snes_max_it", 25)
+        self.coh_cfg.setdefault("mumps_workspace", 500)
         self.coh_cfg.setdefault("linesearch", "bisection")
         self.coh_cfg.setdefault("monitor", False)
 
@@ -524,6 +525,12 @@ class CohesiveModel:
             "ksp_type": "preonly",
             "pc_type": "cholesky",
             "pc_factor_mat_solver_type": "mumps",
+            # MUMPS working space. The default estimate is formed before the
+            # variational inequality decides which eigenstrain degrees of
+            # freedom are active; when a uniformly stressed body releases them
+            # all at once the factorization that follows needs far more room
+            # than was estimated, and otherwise fails outright.
+            "mat_mumps_icntl_14": int(self.coh_cfg["mumps_workspace"]),
             **({"snes_monitor": None, "snes_converged_reason": None}
                if self.coh_cfg["monitor"] else {}),
         }

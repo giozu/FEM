@@ -834,7 +834,9 @@ unchanged.
 
 Implemented in :class:`z3st.models.cohesive_model.CohesiveModel`.
 
-Reference case: ``cases/verification/cohesive/bar_1D``.
+Reference cases: ``cases/verification/cohesive/bar_1D`` for the cohesive
+response, and ``cases/verification/cohesive/strength_surface{,_r1,_rinf}_2D``
+for the strength surface itself.
 
 .. figure:: images/cohesive_bar_1D/cohesive_bar_1D.png
    :width: 95%
@@ -848,6 +850,23 @@ Reference case: ``cases/verification/cohesive/bar_1D``.
    tending to :math:`G_c`; (d) the phase-field profile, Eq. (75), which fixes
    the regularisation length. The offset between the two reference curves is the
    discretisation bias of Eq. (149), :math:`h/2\ell`, not a modelling error.
+
+.. figure:: images/cohesive_strength_surface/strength_surfaces.png
+   :width: 95%
+   :align: center
+
+   The property the model exists for: one formulation, one code path, three
+   deliberately different strength surfaces, each recovered to better than
+   0.2 %. (a) normalised by :math:`p_c` and :math:`\tau_c`, so the surfaces
+   differ in shape alone; the markers are the stress at which each computation
+   first produced damage. Note that :math:`r = 1` is probed exactly at the
+   corner of its rectangle, the non-smooth point of the surface. For
+   :math:`p < 0` all three coincide at :math:`\tau = \tau_c` (Eq. 109), so
+   only the last drawn is visible there. (b) the same domains in physical
+   stress; they differ in size as well, because the paper picks
+   :math:`p_c = 8.9` MPa for :math:`r = 1` against 12.4 MPa for the other two
+   so that every variant sits at :math:`\ell / \ell_{ch} = 1/4`.
+
 
 .. _gap-conductance:
 

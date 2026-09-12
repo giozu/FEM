@@ -1,0 +1,56 @@
+{
+    "results": {
+        "nucleation_on_surface_radial": {
+            "numerical": 0.0015352356088711439,
+            "reference": 0.0,
+            "abs_error": 0.0015352356088711439,
+            "rel_error": 0.0015352356088711439,
+            "status": "PASS"
+        },
+        "surface_brackets_nucleation": {
+            "numerical": 0.0,
+            "reference": 0.0,
+            "abs_error": 0.0,
+            "rel_error": 0.0,
+            "status": "PASS"
+        },
+        "p_nucleation_Pa": {
+            "numerical": 6209406.1315,
+            "reference": 6209406.1315,
+            "abs_error": 0.0,
+            "rel_error": 0.0,
+            "status": "PASS"
+        },
+        "tau_nucleation_Pa": {
+            "numerical": 6209630.79005,
+            "reference": 6209630.79005,
+            "abs_error": 0.0,
+            "rel_error": 0.0,
+            "status": "PASS"
+        },
+        "nucleation_step": {
+            "numerical": 39.0,
+            "reference": 39.0,
+            "abs_error": 0.0,
+            "rel_error": 0.0,
+            "status": "PASS"
+        },
+        "p_over_tau": {
+            "numerical": 0.9999638209488462,
+            "reference": 1.0,
+            "abs_error": 3.617905115382847e-05,
+            "rel_error": 3.617905115382847e-05,
+            "status": "PASS"
+        },
+        "load_step_resolution": {
+            "numerical": 0.0020307820126170342,
+            "reference": 0.0020307820126170342,
+            "abs_error": 0.0,
+            "rel_error": 0.0,
+            "status": "PASS"
+        }
+    },
+    "tolerance": 0.02,
+    "summary": "PASS",
+    "regression": "PASS"
+}

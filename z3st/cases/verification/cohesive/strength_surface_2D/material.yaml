@@ -1,0 +1,14 @@
+# Strength-surface test, Vicentini et al. (2026) Sec. 5.3, converted to SI.
+# Paper: E = 100 MPa, nu = 0.3, Gc = 0.2 MPa mm, ell = 0.025 mm,
+# with p_c = tau_c = 12.4 MPa for r = 2 and r = inf. That pairing puts the
+# case exactly at the strain-hardening limit ell / ell_ch = 1/4.
+name: block
+
+E: 1.0e+8             # Young's modulus (Pa)
+nu: 0.3               # Poisson's ratio (-)
+rho: 1.0              # Density (kg/m^3); gravity is off
+T_ref: 300.0          # Reference temperature (K)
+
+Gc: 200.0             # Fracture toughness (J/m^2) = 0.2 MPa mm
+p_c: 1.24e+7          # Critical pressure (Pa)
+tau_c: 1.24e+7        # Shear strength (Pa)
