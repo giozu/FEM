@@ -9,13 +9,20 @@
 Diagnostics for verification/cohesive/bar_1D.
 
 Streams the structural response to ``output/response.csv``: one row per step
-with the prescribed displacement, the axial stress and the maximum of the phase
-field. ``non-regression.py`` reads this CSV and compares the whole curve with
-the closed-form solution of the paper.
+with the prescribed displacement, the axial stress, the maximum of the phase
+field, the two energies and the crack opening. ``non-regression.py`` reads this
+CSV and compares the curve with the closed-form solution of the paper;
+``plots.py`` renders it.
 
 The bar is in equilibrium under a uniform axial stress, so the stress is taken
 as its volume average, which is exact here and insensitive to which element
 localizes.
+
+The crack opening is read from the eigenstrain rather than reconstructed from
+the damage: a continuous linear displacement cannot jump, so the discrete
+counterpart of the jump is the eigenstrain of the cracked element times that
+element's size (paper Sec. 5.2). Recovering it from the damage instead would
+make the cohesive-law plot a tautology.
 """
 
 import os
@@ -26,7 +33,7 @@ import ufl
 from mpi4py import MPI
 
 _CSV = os.path.join(os.path.dirname(__file__), "output", "response.csv")
-_HEADER = "step,U_t_m,sigma_xx_Pa,alpha_max,E_el_J,E_frac_J\n"
+_HEADER = "step,U_t_m,sigma_xx_Pa,alpha_max,E_el_J,E_frac_J,crack_opening_m\n"
 
 _run_started = False
 
@@ -58,6 +65,15 @@ def per_step(problem, step, t):
                 U_t = float(np.atleast_1d(bc["const"].value)[0])
 
     alpha_max = comm.allreduce(float(problem.D.x.array.max()), op=MPI.MAX)
+
+    # Crack opening: max(eta) * h of the cell carrying it.
+    _, eta_dofs = problem.W.sub(1).collapse()
+    eta = problem.w.x.array[np.asarray(eta_dofs, dtype=np.int32).ravel()]
+    cell = int(np.argmax(eta))
+    h_cell = dolfinx.cpp.mesh.h(
+        problem.mesh._cpp_object, problem.mesh.topology.dim,
+        np.array([cell], dtype=np.int32))[0]
+    opening = comm.allreduce(float(eta[cell] * h_cell), op=MPI.MAX)
     E_el, E_frac = problem.compute_cohesive_energy_balance(problem.w, problem.D)
 
     if comm.rank != 0:
@@ -69,5 +85,5 @@ def per_step(problem, step, t):
         if not _run_started:
             f.write(_HEADER)
         f.write(f"{step:d},{U_t:.10e},{sigma_avg:.10e},{alpha_max:.10e},"
-                f"{E_el:.10e},{E_frac:.10e}\n")
+                f"{E_el:.10e},{E_frac:.10e},{opening:.10e}\n")
     _run_started = True

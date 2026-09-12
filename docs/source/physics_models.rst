@@ -836,6 +836,19 @@ Implemented in :class:`z3st.models.cohesive_model.CohesiveModel`.
 
 Reference case: ``cases/verification/cohesive/bar_1D``.
 
+.. figure:: images/cohesive_bar_1D/cohesive_bar_1D.png
+   :width: 95%
+   :align: center
+
+   Bar in tension, against the closed-form solution of Vicentini et al. (2026):
+   (a) structural response, Eq. (85), whose snap-back at :math:`B = 5` cannot be
+   followed under displacement control, so the computed stress drops vertically
+   onto the softening branch instead; (b) the cohesive law, Eq. (78), recovered
+   from the eigenstrain of the cracked element; (c) the dissipated energy
+   tending to :math:`G_c`; (d) the phase-field profile, Eq. (75), which fixes
+   the regularisation length. The offset between the two reference curves is the
+   discretisation bias of Eq. (149), :math:`h/2\ell`, not a modelling error.
+
 .. _gap-conductance:
 
 Gap Conductance Model
