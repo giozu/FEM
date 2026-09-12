@@ -58,7 +58,6 @@ input.yaml
 
    # Solver settings
    solver_settings:
-     coupling: staggered
      max_iters: 100
      relax_T: 0.9                # Thermal relaxation
      relax_u: 0.7                # Mechanical relaxation
@@ -72,8 +71,13 @@ input.yaml
    models:
      thermal: true
      mechanical: true
-     damage: false
-     cluster_dynamics: false
+     damage: false          # phase-field fracture
+     plasticity: false
+     contact: false         # penalty contact between disjoint bodies
+     porosity: false        # thermal-gradient-driven pore migration
+     cluster: false         # 1D cluster dynamics
+     fission_gas:           # SCIANTIX coupling (needs SCIANTIX_LIB)
+       enabled: false
 
    # Thermal solver
    thermal:
@@ -359,7 +363,6 @@ Common Workflows
      mechanical: true
 
    solver_settings:
-     coupling: staggered
 
 **4. Phase-field fracture**:
 

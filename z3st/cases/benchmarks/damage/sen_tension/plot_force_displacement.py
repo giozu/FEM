@@ -17,6 +17,9 @@ import os
 from glob import glob
 
 import matplotlib.pyplot as plt
+
+from z3st.utils.plotstyle import apply as _apply_plotstyle
+_apply_plotstyle()
 import numpy as np
 import pyvista as pv
 import yaml
@@ -58,8 +61,8 @@ if VTU_FILES:
 
         # F_y = integral of sigma_yy along top edge (per unit out-of-plane depth).
         # Component index 4 of the row-major flattened 3x3 stress tensor.
-        if "Stress_steel (points)" in m.point_data:
-            S_top = np.asarray(m.point_data["Stress_steel (points)"])[top_mask, 4]
+        if "Stress (points)" in m.point_data:
+            S_top = np.asarray(m.point_data["Stress (points)"])[top_mask, 4]
             x_top = x_pts[top_mask]
             order = np.argsort(x_top)
             F_per_depth = float(np.trapezoid(S_top[order], x_top[order]))
@@ -96,7 +99,7 @@ plt.figure(figsize=(7, 5))
 plt.plot(u_mm, F_kN, "C0-o", markersize=3, label="Numerical")
 if F_kN.size > 0:
     peak = int(np.nanargmax(F_kN))
-    plt.plot(u_mm[peak], F_kN[peak], "r*", markersize=12,
+    plt.plot(u_mm[peak], F_kN[peak], "*", color="#D55E00", markersize=12,
              label=f"Peak: F = {F_kN[peak]:.3f} kN at u = {u_mm[peak]:.4f} mm")
 plt.xlabel(r"Top-edge displacement $u_y$ (mm)")
 plt.ylabel(r"Force $F_y$ (kN, per 1 mm depth)")

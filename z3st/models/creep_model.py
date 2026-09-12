@@ -2,7 +2,7 @@
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 # Z3ST: An open-source FEniCSx framework for thermo-mechanical analysis
 # Author: Giovanni Zullo
-# Version: 0.2.0 (2026)
+# Version: 0.3.2 (2026)
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 """
 Implicit creep via the incremental variational principle, tangent by AD.
@@ -14,7 +14,7 @@ incremental potential (Ortiz & Stainier)
     Π(u, Δε_cr) = ∫ ψ_el(ε(u) − ε* − ε_cr^n − Δε_cr) + Δt φ*(Δε_cr/Δt) dx,
 
 with the Norton dual dissipation potential φ*. Because Δε_cr is cell-local
-(no gradients), its stationarity condition condenses to ONE scalar equation
+(no gradients), its stationarity condition condenses to one scalar equation
 per point — the classical viscoplastic radial return for von Mises flow:
 
     g(Δγ) = Δγ − Δt·[A(T)·(σ_eq_trial − 3G·Δγ)^n + B·φ·(σ_eq_trial − 3G·Δγ)] = 0,
@@ -33,19 +33,18 @@ Newton makes the AD Jacobian grow combinatorially in FFCx):
 
 * a DG0 *predictor* field Δγ₀ holds the exact root, computed cell-wise by a
   vectorised numpy Newton after every mechanical solve (cheap, warm-started);
-* the UFL expression carries ONE symbolic Newton step from the predictor,
+* the UFL expression carries one symbolic Newton step from the predictor,
   ``Δγ(u) = Δγ₀ − g(Δγ₀, u)/g'(Δγ₀, u)``.
 
 At staggered convergence the predictor equals the root, the correction
 vanishes, and ``ufl.derivative`` of the one-step formula yields exactly the
 implicit-function-theorem consistent tangent −(∂g/∂u)/g' through a small
-expression tree. The global problem stays on the displacement space alone, so
-every BC / traction / contact path is reused unchanged.
+expression tree. The global problem stays on the displacement space alone.
 
 The accumulated ε_cr lives on a DG0 tensor space per creeping material and is
 advanced once per converged time step (mirroring ``update_plastic_history``).
 It is deviatoric by construction (radial-return direction), so creep is
-volume-preserving for free.
+volume-preserving.
 
 Scope (v1): isotropic Lamé elasticity, Norton law, regimes with 3×3 strain
 tensors (axisymmetric / 2d / 3d). Not combinable with damage or plasticity on
@@ -85,7 +84,7 @@ class CreepModel:
         in-pile creep term ε̇_irr = B·φ·σ_eq, with B the irradiation-creep
         coefficient (card ``creep_irr_B``, Pa⁻¹ per n/m²) and φ the fast flux
         (card ``fast_flux``, n/(m²·s)). Zero (term absent) unless both keys are
-        on the card — out-of-pile cases are unaffected."""
+        on the card."""
         return float(material.get("creep_irr_B", 0.0)) * float(material.get("fast_flux", 0.0))
 
     # --. the condensed incremental update --..
@@ -106,7 +105,7 @@ class CreepModel:
 
     def creep_increment(self, u, material, T, dt):
         """Δε_cr(u) — the implicit creep-strain increment as a UFL tensor:
-        radial return with ONE symbolic Newton step from the (exact, numpy-
+        radial return with one symbolic Newton step from the (exact, numpy-
         maintained) DG0 predictor Δγ₀. At the converged predictor the step is
         a no-op in value but supplies the exact IFT consistent tangent."""
         _, s_tr, sig_eq_tr = self._creep_trial(u, material, T)
@@ -129,7 +128,7 @@ class CreepModel:
 
     def creep_stress(self, u, material, T, dt):
         """Condensed stress σ = ℂ:(ε(u) − ε* − ε_cr^n − Δε_cr(u)). The
-        eigenstrain ε* is inside, so the solver must NOT add a separate
+        eigenstrain ε* is inside, so the solver must not add a separate
         eigenstress term for a creeping material."""
         eps_el_tr, _, _ = self._creep_trial(u, material, T)
         eps_el = eps_el_tr - self.creep_increment(u, material, T, dt)
@@ -140,9 +139,7 @@ class CreepModel:
         """End-of-step stress for results/output, σ = ℂ:(ε(u) − ε* − ε_cr),
         with the *updated* ε_cr (``update_creep_state`` has already absorbed
         the step increment). Returns (σ, ε_el) so the elastic energy density
-        can be built consistently. Without this, get_results' naive Hooke
-        composition reports the unrelaxed elastic stress for a creeping
-        material."""
+        can be built consistently."""
         eps_star = self.eigenstrain(T, material) if self.applies_eigenstress(material) \
             else 0.0 * ufl.Identity(3)
         eps_el = self.epsilon(u) - eps_star - self._creep_field(material["__label__"])
@@ -174,13 +171,12 @@ class CreepModel:
         return self._dgamma0[name]
 
     def update_creep_predictor(self, u, T):
-        """Refresh the predictor Δγ₀ to the EXACT root of the radial-return
+        """Refresh the predictor Δγ₀ to the exact root of the radial-return
         equation at the current displacement iterate — a vectorised, warm-
         started numpy Newton per cell. Called before every mechanical solve;
         the staggered loop drives (u, Δγ₀) to joint consistency, and the
         returned max relative predictor change feeds the staggered convergence
-        test (``|Δu|`` alone can pass spuriously when a stale predictor zeroes the
-        increment through the base ≥ 0 clamp)."""
+        test, which ``|Δu|`` alone does not cover."""
         dt = getattr(self, "dt", 0.0)
         max_change = 0.0
         for name, material in self.materials.items():
@@ -191,19 +187,6 @@ class CreepModel:
             if dt <= 0.0:
                 pred.x.array[:] = 0.0
                 continue
-            # No early exit when this rank owns no cells of the material, so
-            # that every rank reaches pred.x.scatter_forward() below. pred lives
-            # on the whole mesh, not on a submesh restricted to this material,
-            # so its ghost update is a neighbourhood collective over the full
-            # mesh communicator, and letting some ranks skip it while others
-            # call it is asymmetric collective usage. Measured on 12 ranks of
-            # creep_shrink_fit_2D (9 of them owning no clad cells) it does not
-            # in fact hang - a rank with no owned cells of the material also
-            # assembles no integrals over it, so the ghost entries it fails to
-            # refresh are never read. This is symmetry hygiene, matching
-            # update_creep_state, not a fix for an observed failure.
-            # Empty-cell ranks fall through with zero-size arrays; only the
-            # reductions below need guarding.
 
             # σ_eq_trial on the material's cells (DG0 interpolation)
             _, _, sig_eq_tr = self._creep_trial(u, material, T)
@@ -243,10 +226,9 @@ class CreepModel:
                 g = x - Adt * base**n - Cdt * base
                 gp = 1.0 + 3.0 * G * (n * Adt * np.maximum(base, 1.0) ** (n - 1.0) + Cdt)
                 x = np.clip(x - g / gp, 0.0, sig / (3.0 * G) * (1 - 1e-12))
-            # Loud check that the fixed-iteration Newton actually converged: a
-            # high Norton exponent with Δt·A·σⁿ ≫ σ/3G can need more than
-            # _PRED_NEWTON_ITS contractions, and a silently unconverged root
-            # would be treated as exact by the symbolic Newton step.
+            # Convergence check on the fixed-iteration Newton: a high Norton
+            # exponent with Δt·A·σⁿ ≫ σ/3G needs more than _PRED_NEWTON_ITS
+            # contractions.
             base = np.maximum(sig - 3.0 * G * x, 0.0)
             g_res = x - Adt * base**n - Cdt * base
             res_scale = np.maximum(np.abs(x), 1e-30)

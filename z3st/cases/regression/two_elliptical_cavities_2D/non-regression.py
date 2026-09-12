@@ -15,9 +15,8 @@ import h5py
 import matplotlib.pyplot as plt
 from matplotlib.tri import Triangulation
 
-from z3st.utils.utils_extract_vtu import *
-from z3st.utils.utils_extract_xdmf import *
-from z3st.utils.utils_verification import *
+from z3st.utils.non_regression import finish
+from z3st.utils.utils_extract_xdmf import extract_field_xdmf, list_fields_xdmf
 
 from z3st.materials.oxide import Gc_numpy as Gc
 
@@ -118,9 +117,9 @@ plt.figure(figsize=(10, 5))
 for xb in (-Lx / 4, +Lx / 4):                        # cavity footprints + tips
     plt.axvspan(xb - ax, xb + ax, color="0.92", zorder=0)
     for s in (-1, +1):
-        plt.axvline(xb + s * ax, color="r", ls="--", lw=0.8, alpha=0.6)
+        plt.axvline(xb + s * ax, color="#D55E00", ls="--", lw=0.8, alpha=0.6)
 plt.scatter(x_line, sigma_yy_line, s=4, c="0.7", alpha=0.4, label="band samples")
-plt.plot(xc, syy_mean, "b-", lw=2, label=r"$\sigma_{yy}$ (mean along $y\approx0$)")
+plt.plot(xc, syy_mean, "-", color="#0072B2", lw=2, label=r"$\sigma_{yy}$ (mean along $y\approx0$)")
 plt.xlabel(r"x along grain boundary ($\mu$m)")
 plt.ylabel(r"$\sigma_{yy}$ (MPa)")
 plt.title("GB stress profile — bubble tips (red dashed) concentrate the stress")
@@ -139,7 +138,7 @@ sigma_c = ((27 * E * gc_line) / (256 * lc))**0.5
 
 plt.figure(figsize=(8, 5))
 # gc_line is in pJ/µm², which equals J/m² numerically in this unit system.
-plt.plot(y_line * 1000, gc_line, 'g-', label="$G_c$ profile (GB zone)")
+plt.plot(y_line * 1000, gc_line, "-", color="#009E73", label="$G_c$ profile (GB zone)")
 plt.xlabel(r"Distance $y$ (nm)")
 plt.ylabel("$G_c$ ($J/m^2$)")
 plt.grid(True, ls=':')
@@ -188,8 +187,7 @@ except Exception as e:
 sigma_yy_ref = intensification_factor / (1.0 - Fc_area) * p_applied
 
 # Loose analytic tolerance: the tip-concentration estimate is approximate. A
-# pass means the right regime (no fracture, expected concentration); drift vs
-# code/mesh is guarded by regression_check vs gold.
+# pass means the right regime (no fracture, expected concentration).
 TOLERANCE = 0.25
 
 errors = {
@@ -211,5 +209,4 @@ print(f"  → Max Damage: {d_max:.3e}  (reference 0 — no fracture at equilibri
 print(f"  → Max Stress_yy: {sigma_yy_max:.2f} MPa "
       f"(analytic tip estimate K_t/(1-Fc)*p = {sigma_yy_ref:.2f} MPa)")
 
-pass_fail_check(errors, TOLERANCE, OUT_JSON, CASE_DIR)
-regression_check(errors, CASE_DIR)
+finish(errors, TOLERANCE, OUT_JSON, CASE_DIR)

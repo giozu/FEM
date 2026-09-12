@@ -2,7 +2,7 @@
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 # Z3ST: An open-source FEniCSx framework for thermo-mechanical analysis
 # Author: Giovanni Zullo
-# Version: 0.2.0 (2026)
+# Version: 0.3.2 (2026)
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 
 # ============================================================================
@@ -24,9 +24,9 @@ sys.path.insert(0, os.path.abspath("../../utils"))
 # ============================================================================
 
 project = "Z3ST"
-copyright = "2025, Giovanni Zullo"
+copyright = "2025-2026, Giovanni Zullo, Politecnico di Milano"
 author = "Giovanni Zullo"
-release = "0.2.0"
+release = "0.3.2"
 
 # ============================================================================
 # GENERAL CONFIGURATION
@@ -44,6 +44,7 @@ extensions = [
     # Type hints and doc improvements
     "sphinx_autodoc_typehints",
     "myst_parser",  # enables Markdown support
+    "sphinxcontrib.mermaid",  # renders the ```mermaid blocks in architecture.md
 ]
 
 templates_path = ["_templates"]
@@ -60,9 +61,7 @@ autodoc_typehints = "description"  # show type hints in function docs
 
 # Heavy compiled dependencies (FEniCSx stack, MPI, mesh/visualisation) are not
 # importable in a plain docs/CI environment. Mock them so autodoc can introspect
-# the z3st modules from their source without importing the real packages. This
-# lets the documentation build cleanly in any environment (base conda, CI, the
-# GitHub Actions deploy) -- not only in the dolfinx-enabled `z3st` env.
+# the z3st modules from their source without importing the real packages.
 autodoc_mock_imports = [
     "dolfinx",
     "basix",
@@ -140,7 +139,6 @@ math_eqref_format = "Eq.{number}"
 numfig = True
 
 # Render math client-side with MathJax (no LaTeX/dvipng toolchain needed in CI).
-# Without this, sphinx.ext.imgmath could hijack rendering and emit raw LaTeX.
 html_math_renderer = "mathjax"
 
 # ============================================================================
@@ -156,3 +154,16 @@ myst_enable_extensions = [
     "replacements",
 ]
 myst_heading_anchors = 3  # automatic anchors up to H3
+
+# Route ```mermaid fenced blocks to the mermaid directive instead of rendering
+# them as literal code.
+myst_fence_as_directive = ["mermaid"]
+
+# ============================================================================
+# MERMAID CONFIGURATION
+# ============================================================================
+
+# Diagrams are drawn client-side by mermaid.js loaded from a CDN, so the docs
+# build needs no Node.js or headless browser.
+mermaid_version = "10.9.1"
+mermaid_output_format = "raw"

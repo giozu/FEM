@@ -3,7 +3,7 @@
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 # Z3ST: An open-source FEniCSx framework for thermo-mechanical analysis
 # Author: Giovanni Zullo
-# Version: 0.2.0 (2026)
+# Version: 0.3.2 (2026)
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 """
 Presentation GIFs for the FEniCS 2026 talk.
@@ -16,12 +16,10 @@ Two animations:
      contact pressure, temperature -- with a marker sweeping the time axis so
      the mesh and the curves advance together.
 
-     NOTE on the warp factor: the unmeshed 65 um pellet-clad gap is baked into
-     the mesh coordinates and is NOT scaled by warp_by_vector (only the
-     displacement is). Exaggerating the warp therefore makes the pellet
-     visually overrun the clad by ~(factor-1)x65 um, which is unphysical. The
-     faithful animation is factor = 1.0; the quantitative gap-closure / contact
-     story is carried by the side-panel curves.
+     Warp factor: the unmeshed 65 um pellet-clad gap is baked into the mesh
+     coordinates and is not scaled by warp_by_vector (only the displacement
+     is), so a factor > 1 makes the pellet overrun the clad by ~(factor-1)x65
+     um. The faithful animation is factor = 1.0.
 
   2. damage_evolution.gif (benchmarks/damage/pellet_quench_2D_xy)
      AT1 phase-field damage field over the thermal-shock transient, cracks
@@ -47,6 +45,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+
+from z3st.utils.plotstyle import apply as _apply_plotstyle
+_apply_plotstyle()
 from PIL import Image
 import pyvista as pv
 
@@ -178,34 +179,34 @@ def make_pcmi_gif():
         cur_d = days[i]
         common = dict(lw=1.6)
         ax1 = fig.add_subplot(gs[0, 1])
-        ax1.plot(days, gap, color="#4C72B0", **common)
+        ax1.plot(days, gap, color="#0072B2", **common)
         ax1.axhline(0, color="grey", lw=0.8, ls=":")
-        ax1.scatter([cur_d], [gap[i]], color="#4C72B0", zorder=5, s=36)
-        ax1.set_ylabel("gap (um)", color="#4C72B0")
+        ax1.scatter([cur_d], [gap[i]], color="#0072B2", zorder=5, s=36)
+        ax1.set_ylabel("gap (um)", color="#0072B2")
         ax1.tick_params(labelbottom=False)
         ax1.grid(alpha=0.3)
 
         ax2 = fig.add_subplot(gs[1, 1], sharex=ax1)
-        ax2.plot(days, pres, color="#C44E52", **common)
-        ax2.scatter([cur_d], [pres[i]], color="#C44E52", zorder=5, s=36)
-        ax2.set_ylabel("contact p (MPa)", color="#C44E52")
+        ax2.plot(days, pres, color="#D55E00", **common)
+        ax2.scatter([cur_d], [pres[i]], color="#D55E00", zorder=5, s=36)
+        ax2.set_ylabel("contact p (MPa)", color="#D55E00")
         ax2.tick_params(labelbottom=False)
         ax2.grid(alpha=0.3)
 
         ax3 = fig.add_subplot(gs[2, 1], sharex=ax1)
-        ax3.plot(days, tmax, color="#911B1F", **common, label="T max")
-        ax3.plot(days, tmin, color="#DD8452", **common, label="T min")
+        ax3.plot(days, tmax, color="#D55E00", **common, label="T max")
+        ax3.plot(days, tmin, color="#E69F00", **common, label="T min")
         ax3.scatter([cur_d, cur_d], [tmax[i], tmin[i]], color="black",
                     zorder=5, s=24)
         ax3.set_ylabel("T (K)")
         ax3.set_xlabel("time (days)")
-        ax3.legend(fontsize=8, loc="center right")
+        ax3.legend(fontsize=10, loc="center right")
         ax3.grid(alpha=0.3)
 
         for ax in (ax1, ax2, ax3):
             ax.axvline(cur_d, color="0.6", lw=0.8, ls="--")
             if contact_day is not None:
-                ax.axvline(contact_day, color="green", lw=0.8, alpha=0.5)
+                ax.axvline(contact_day, color="#009E73", lw=0.8, alpha=0.5)
 
         state = "CONTACT" if gap[i] <= 0.0 else "open gap"
         fig.suptitle(f"PCMI in a PWR rod  -  t = {cur_d:6.1f} d   "

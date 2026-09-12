@@ -17,13 +17,11 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from z3st.utils.utils_extract_vtu import *
-from z3st.utils.utils_verification import *
+from z3st.utils.non_regression import case_paths, error_metric, finish
+from z3st.utils.utils_extract_vtu import extract_field, list_fields
 
 # --.. ..- .-.. .-.. --- configuration --.. ..- .-.. .-.. ---
-CASE_DIR = os.path.dirname(__file__)
-VTU_FILE = os.path.join(CASE_DIR, "output", "fields.vtu")
-OUT_JSON = os.path.join(CASE_DIR, "output", "non-regression.json")
+CASE_DIR, VTU_FILE, OUT_JSON = case_paths(__file__)
 
 # Geometry and material
 Ri, Ro, Lz = 0.02, 0.03, 0.50  # m          inner and outer radius, height
@@ -65,7 +63,7 @@ print(f"[INFO] Target z-plane for extraction: z = {z_target:.4e} m")
 
 # Numerical results
 # Stress
-x_S, z_S, _, S_all = extract_field(VTU_FILE, field_name="Stress_steel (cells)")
+x_S, z_S, _, S_all = extract_field(VTU_FILE, field_name="Stress (cells)")
 mask = np.abs(z_S - z_target) < z_tol
 sort_idx = np.argsort(x_S[mask])
 
@@ -108,13 +106,13 @@ plt.figure(figsize=(10, 7))
 # Stress
 ax1 = plt.gca()
 ax1.plot(
-    r_s, sigma_rr * Pa_to_MPa, "ro", label=r"Num. $\sigma_{rr}$ (Radial)", markersize=4, alpha=0.6
+    r_s, sigma_rr * Pa_to_MPa, "o", color="#D55E00", label=r"Num. $\sigma_{rr}$ (Radial)", markersize=4, alpha=0.6
 )
-ax1.plot(r_s, sigma_rr_ana_L * Pa_to_MPa, "r-", label=r"Ana. $\sigma_{rr}$ (Radial)", linewidth=1.5)
+ax1.plot(r_s, sigma_rr_ana_L * Pa_to_MPa, "-", color="#D55E00", label=r"Ana. $\sigma_{rr}$ (Radial)", linewidth=1.5)
 ax1.plot(
     r_s,
     sigma_tt * Pa_to_MPa,
-    "go",
+    "o", color="#009E73",
     label=r"Num. $\sigma_{\theta\theta}$ (Hoop)",
     markersize=4,
     alpha=0.6,
@@ -122,14 +120,14 @@ ax1.plot(
 ax1.plot(
     r_s,
     sigma_tt_ana_L * Pa_to_MPa,
-    "g-",
+    "-", color="#009E73",
     label=r"Ana. $\sigma_{\theta\theta}$ (Hoop)",
     linewidth=1.5,
 )
 ax1.plot(
-    r_s, sigma_zz * Pa_to_MPa, "bo", label=r"Num. $\sigma_{zz}$ (Axial)", markersize=4, alpha=0.6
+    r_s, sigma_zz * Pa_to_MPa, "o", color="#0072B2", label=r"Num. $\sigma_{zz}$ (Axial)", markersize=4, alpha=0.6
 )
-ax1.plot(r_s, sigma_zz_ana_L * Pa_to_MPa, "b-", label=r"Ana. $\sigma_{zz}$ (Axial)", linewidth=1.5)
+ax1.plot(r_s, sigma_zz_ana_L * Pa_to_MPa, "-", color="#0072B2", label=r"Ana. $\sigma_{zz}$ (Axial)", linewidth=1.5)
 
 ax1.set_xlabel("Radius (m)", fontsize=12)
 ax1.set_ylabel("Stress (MPa)", fontsize=12)
@@ -148,21 +146,21 @@ plt.figure(figsize=(10, 7))
 
 # Strain
 ax1 = plt.gca()
-ax1.plot(r_s, epsilon_rr, "ro", label=r"Num. $\varepsilon_{rr}$ (Radial)", markersize=4, alpha=0.6)
-ax1.plot(r_s, epsilon_rr_ana_L, "r-", label=r"Ana. $\varepsilon_{rr}$ (Radial)", linewidth=1.5)
+ax1.plot(r_s, epsilon_rr, "o", color="#D55E00", label=r"Num. $\varepsilon_{rr}$ (Radial)", markersize=4, alpha=0.6)
+ax1.plot(r_s, epsilon_rr_ana_L, "-", color="#D55E00", label=r"Ana. $\varepsilon_{rr}$ (Radial)", linewidth=1.5)
 ax1.plot(
     r_s,
     epsilon_tt,
-    "go",
+    "o", color="#009E73",
     label=r"Num. $\varepsilon_{\theta\theta}$ (Hoop)",
     markersize=4,
     alpha=0.6,
 )
 ax1.plot(
-    r_s, epsilon_tt_ana_L, "g-", label=r"Ana. $\varepsilon_{\theta\theta}$ (Hoop)", linewidth=1.5
+    r_s, epsilon_tt_ana_L, "-", color="#009E73", label=r"Ana. $\varepsilon_{\theta\theta}$ (Hoop)", linewidth=1.5
 )
-ax1.plot(r_s, epsilon_zz, "bo", label=r"Num. $\varepsilon_{zz}$ (Axial)", markersize=4, alpha=0.6)
-ax1.plot(r_s, epsilon_zz_ana_L, "b-", label=r"Ana. $\varepsilon_{zz}$ (Axial)", linewidth=1.5)
+ax1.plot(r_s, epsilon_zz, "o", color="#0072B2", label=r"Num. $\varepsilon_{zz}$ (Axial)", markersize=4, alpha=0.6)
+ax1.plot(r_s, epsilon_zz_ana_L, "-", color="#0072B2", label=r"Ana. $\varepsilon_{zz}$ (Axial)", linewidth=1.5)
 
 ax1.set_xlabel("Radius (m)", fontsize=12)
 ax1.set_ylabel("Strain (/)", fontsize=12)
@@ -191,46 +189,15 @@ err_eps_zz = np.sqrt(np.mean((epsilon_zz - epsilon_zz_ana_L) ** 2)) / np.sqrt(
 )
 
 errors = {
-    "L2_error_sigma_rr": {
-        "numerical": float(err_rr),
-        "reference": 0.0,
-        "abs_error": float(err_rr),
-        "rel_error": float(err_rr),
-    },
-    "L2_error_sigma_tt": {
-        "numerical": float(err_tt),
-        "reference": 0.0,
-        "abs_error": float(err_tt),
-        "rel_error": float(err_tt),
-    },
-    "L2_error_sigma_zz": {
-        "numerical": float(err_zz),
-        "reference": 0.0,
-        "abs_error": float(err_zz),
-        "rel_error": float(err_zz),
-    },
-    "L2_error_strain_rr": {
-        "numerical": float(err_eps_rr),
-        "reference": 0.0,
-        "abs_error": float(err_eps_rr),
-        "rel_error": float(err_eps_rr),
-    },
-    "L2_error_strain_tt": {
-        "numerical": float(err_eps_tt),
-        "reference": 0.0,
-        "abs_error": float(err_eps_tt),
-        "rel_error": float(err_eps_tt),
-    },
-    "L2_error_strain_zz": {
-        "numerical": float(err_eps_zz),
-        "reference": 0.0,
-        "abs_error": float(err_eps_zz),
-        "rel_error": float(err_eps_zz),
-    },
+    "L2_error_sigma_rr": error_metric(err_rr),
+    "L2_error_sigma_tt": error_metric(err_tt),
+    "L2_error_sigma_zz": error_metric(err_zz),
+    "L2_error_strain_rr": error_metric(err_eps_rr),
+    "L2_error_strain_tt": error_metric(err_eps_tt),
+    "L2_error_strain_zz": error_metric(err_eps_zz),
 }
 
 # --.. ..- .-.. .-.. --- pass/fail + regression --.. ..- .-.. .-.. ---
-pass_fail_check(errors, TOLERANCE, OUT_JSON, CASE_DIR)
-regression_check(errors, CASE_DIR)
+finish(errors, TOLERANCE, OUT_JSON, CASE_DIR)
 
 print("\n[INFO] Non-regression completed.\n")

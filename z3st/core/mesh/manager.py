@@ -2,7 +2,7 @@
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 # Z3ST: An open-source FEniCSx framework for thermo-mechanical analysis
 # Author: Giovanni Zullo
-# Version: 0.2.0 (2026)
+# Version: 0.3.2 (2026)
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 
 import dolfinx
@@ -10,7 +10,7 @@ import numpy as np
 import ufl
 from dolfinx import fem, mesh
 
-from z3st.core.diagnostic import log
+from z3st.utils.logger import log
 
 
 class MeshManager:
@@ -98,10 +98,8 @@ class MeshManager:
         log.info(f"  Lz = {self.Lz:.3f} m")
 
         if self.geometry_type == "rect":
-            Lx_keys = ["Lx", "length_x"]
-            Ly_keys = ["Ly", "length_y"]
-            self.Lx = float(self._first_present(g, Lx_keys, None))
-            self.Ly = float(self._first_present(g, Ly_keys, None))
+            self.Lx = self._require_float(g, ["Lx"], "Lx")
+            self.Ly = self._require_float(g, ["Ly"], "Ly")
             self.perimeter = (self.Lx + self.Ly) * 2.0
             self.area = self.Lx * self.Ly
             log.info(f"  Lx = {self.Lx:.3f} m, Ly = {self.Ly:.3f} m")
@@ -116,10 +114,10 @@ class MeshManager:
             log.info(f"  Ri = {self.inner_radius:.3e} m, Ro = {self.outer_radius:.3e} m")
 
         elif self.geometry_type == "cyl-cyl":
-            inner_1_keys = ["inner_radius_1", "Ri_1"]
-            outer_1_keys = ["outer_radius_1", "Ro_1"]
-            inner_2_keys = ["inner_radius_2", "Ri_2"]
-            outer_2_keys = ["outer_radius_2", "Ro_2"]
+            inner_1_keys = ["inner_radius_1"]
+            outer_1_keys = ["outer_radius_1"]
+            inner_2_keys = ["inner_radius_2"]
+            outer_2_keys = ["outer_radius_2"]
             self.inner_radius_1 = self._require_float(g, inner_1_keys, "inner radius 1")
             self.outer_radius_1 = self._require_float(g, outer_1_keys, "outer radius 1")
             self.inner_radius_2 = self._require_float(g, inner_2_keys, "inner radius 2")
@@ -161,6 +159,11 @@ class MeshManager:
         log.info(f"  Topology dim: {self.tdim}")
         log.info(f"  Facet dim: {self.fdim}")
         log.info(f"  Num cells: {self.mesh.topology.index_map(self.tdim).size_global}")
-        log.info(f"  Cell tags: {set(self.cell_tags.values)}")
-        log.info(f"  Facet tags: {set(self.facet_tags.values)}")
+        # A mesh may legitimately carry no tags of one kind: a .geo that declares
+        # Physical Surfaces but no Physical Curves loads fine and runs fine, and
+        # only the summary touched them unguarded, so the run died at startup on
+        # an AttributeError instead of reporting what it had.
+        for name, tags in (("Cell", self.cell_tags), ("Facet", self.facet_tags)):
+            log.info(f"  {name} tags: "
+                     f"{set(tags.values) if tags is not None else 'none'}")
         log.info(f"  Geometry type: {self.geometry.get('geometry_type', 'Not specified')}")

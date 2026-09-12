@@ -7,12 +7,10 @@ Reads ``energies.txt`` and writes ``energy_balance.png``: three traces
 notch baseline ``Gc * Dn`` (step 0) and the Ambati Fig. 12d arrest target
 ``Gc * (Dn + 0.55 mm)``.
 
-This is a post-hoc copy of the energy-balance block inside
-``non-regression.py`` (which runs as part of ``Allrun`` and writes the
-plot into ``./output/`` against the live run). Use this script instead
-when you want to regenerate the plot for a backed-up output directory
-(e.g. ``output_starconvex_g00/``, ``output_backup/``) without disturbing
-the live state.
+A post-hoc copy of the energy-balance block inside ``non-regression.py``,
+which runs as part of ``Allrun`` against the live run. This one regenerates
+the plot for a backed-up output directory (e.g. ``output_starconvex_g00/``)
+without touching the live state.
 
 Usage:
     python3 plot_energy_balance.py                       # default: live run
@@ -32,9 +30,11 @@ import re
 import sys
 
 import matplotlib.pyplot as plt
+
+from z3st.utils.plotstyle import apply as _apply_plotstyle
+_apply_plotstyle()
 import numpy as np
 import yaml
-
 
 CASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -91,8 +91,8 @@ E_frac_notch  = Gc * Dn
 E_frac_target = Gc * (Dn + ambati_arc)
 
 plt.figure(figsize=(8, 5))
-plt.plot(data["Step"], data["E_el"],   "b-o", markersize=3, label=r"Elastic $E_{el}$")
-plt.plot(data["Step"], data["E_frac"], "r-s", markersize=3, label=r"Fracture $E_{frac}$")
+plt.plot(data["Step"], data["E_el"],   "-o", color="#0072B2", markersize=3, label=r"Elastic $E_{el}$")
+plt.plot(data["Step"], data["E_frac"], "-s", color="#D55E00", markersize=3, label=r"Fracture $E_{frac}$")
 plt.plot(data["Step"], data["E_tot"],  "k--", lw=1.5,        label=r"Total $E_{tot}$")
 plt.axhline(E_frac_notch, color="gray", ls="--", alpha=0.5,
             label=rf"$G_c \cdot D_n = {E_frac_notch:.2f}$ J (notch baseline, step 0)")

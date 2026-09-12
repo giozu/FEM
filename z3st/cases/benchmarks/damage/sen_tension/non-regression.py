@@ -2,14 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """Quick diagnostic for the SENT tension test.
 
-Processes only the **last** available VTU file (no per-step loop), so it
-runs in a few seconds and is safe to invoke while the simulation is still
-writing new steps. Generates the ParaView-style field plots of the final
-state (damage, sigma_yy, sigma_xx, sigma_vm, crack-driving force) plus the
-global energy balance read directly from energies.txt.
+Processes only the last available VTU file (no per-step loop), so it runs in
+a few seconds and is safe to invoke while the simulation is still writing new
+steps. Generates the ParaView-style field plots of the final state (damage,
+sigma_yy, sigma_xx, sigma_vm, crack-driving force) plus the global energy
+balance read directly from energies.txt.
 
-For per-step diagnostics (F-u curve, damage evolution panels), use a
-separate post-processing script after the simulation completes.
+Not covered: per-step diagnostics (F-u curve, damage evolution panels).
 """
 
 import os
@@ -22,6 +21,8 @@ import numpy as np
 import pyvista as pv
 import yaml
 
+from z3st.utils.non_regression import finish, tracked
+
 # ----- configuration --------------------------------------------------------
 CASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(CASE_DIR, "output")
@@ -29,6 +30,13 @@ VTU_FILES  = sorted(glob(os.path.join(OUTPUT_DIR, "fields_*.vtu")))
 if not VTU_FILES:
     raise FileNotFoundError(f"No VTU files found in {OUTPUT_DIR}")
 LAST_VTU = VTU_FILES[-1]
+OUT_JSON = os.path.join(OUTPUT_DIR, "non-regression.json")
+
+# This benchmark has no closed-form reference: it reproduces Ambati's figures.
+# Every metric is tracked() -- recorded in the gold and guarded against
+# regression, never a pass/fail criterion.
+metrics = {}
+TOLERANCE = 1e-2
 
 with open(os.path.join(CASE_DIR, "input.yaml")) as f:
     cfg = yaml.safe_load(f)
@@ -96,7 +104,7 @@ def _build_triangulation(pv_mesh):
 
 
 def _draw_notch(ax):
-    ax.plot([0.0, Dn], [Ly / 2.0, Ly / 2.0], color="cyan", linewidth=2.5,
+    ax.plot([0.0, Dn], [Ly / 2.0, Ly / 2.0], color="#56B4E9", linewidth=2.5,
             label=f"Pre-crack slit (0 -- {Dn*1e3:.2f} mm at y = Ly/2)")
 
 
@@ -106,7 +114,7 @@ def plot_field(triang, field, *, output_path, title, cbar_label, cmap, vmin, vma
     cf = ax.tricontourf(triang, field, levels=levels, cmap=cmap, vmin=vmin, vmax=vmax, extend="both")
     ax.triplot(triang, color="black", linewidth=0.05, alpha=0.3)
     _draw_notch(ax)
-    ax.legend(loc="upper right", fontsize=8)
+    ax.legend(loc="upper right", fontsize=10)
     fig.colorbar(cf, ax=ax, label=cbar_label)
     ax.set_xlabel("x (m)")
     ax.set_ylabel("y (m)")
@@ -146,6 +154,7 @@ if D_field is not None:
                cbar_label="Damage D", cmap="hot_r", vmin=0.0, vmax=1.0)
     print("[INFO] damage_field.png saved")
     print(f"          max D = {float(np.max(D_field)):.4f}")
+    metrics["D_max"] = tracked(np.max(D_field))
 
 S = _get(m, ["Stress (points)", "Stress (points)"])
 if S is not None and S.ndim == 2 and S.shape[1] >= 9:
@@ -156,6 +165,7 @@ if S is not None and S.ndim == 2 and S.shape[1] >= 9:
                title="Von Mises equivalent stress (99th-pct clip)",
                cbar_label="sigma_vm (MPa)", cmap="viridis", vmin=0.0, vmax=vm_hi)
     print("[INFO] stress_vm_field.png saved")
+    metrics["sigma_vm_max_MPa"] = tracked(np.nanmax(vm))
 
     syy = S[:, 4] / 1e6
     syy_abs = max(float(np.nanpercentile(np.abs(syy), 99.0)), 1.0)
@@ -195,8 +205,8 @@ if os.path.exists(energy_file):
     E_frac_notch    = Gc * Dn
     E_frac_full_lig = Gc * Lx
     plt.figure(figsize=(8, 5))
-    plt.plot(data["Step"], data["E_el"],   "b-o", markersize=3, label=r"Elastic $E_{el}$")
-    plt.plot(data["Step"], data["E_frac"], "r-s", markersize=3, label=r"Fracture $E_{frac}$")
+    plt.plot(data["Step"], data["E_el"],   "-o", color="#0072B2", markersize=3, label=r"Elastic $E_{el}$")
+    plt.plot(data["Step"], data["E_frac"], "-s", color="#D55E00", markersize=3, label=r"Fracture $E_{frac}$")
     plt.plot(data["Step"], data["E_tot"],  "k--", lw=1.5, label=r"Total $E_{tot}$")
     plt.axhline(E_frac_notch, color="gray", ls="--", alpha=0.5,
                 label=rf"Gc * Dn = {E_frac_notch:.2f} J (notch baseline, step 0)")
@@ -213,5 +223,10 @@ if os.path.exists(energy_file):
     print("[INFO] energy_balance.png saved")
     print(f"          final  E_el = {data['E_el'][-1]:.3f} J, "
           f"E_frac = {data['E_frac'][-1]:.3f} J  (step {int(data['Step'][-1])})")
+    metrics["E_el_final"] = tracked(data["E_el"][-1])
+    metrics["E_frac_final"] = tracked(data["E_frac"][-1])
+    metrics["E_tot_final"] = tracked(data["E_tot"][-1])
 else:
     print(f"[WARN] {energy_file} not found; skipping energy plot.")
+
+finish(metrics, TOLERANCE, OUT_JSON, CASE_DIR)

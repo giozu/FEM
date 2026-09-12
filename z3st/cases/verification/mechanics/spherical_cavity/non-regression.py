@@ -11,28 +11,19 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
-import yaml
 
-from z3st.utils.utils_extract_vtu import *
-from z3st.utils.utils_verification import *
+from z3st.utils.non_regression import case_paths, finish, load_case
+from z3st.utils.utils_extract_vtu import extract_field, list_fields
 
 # --.. ..- .-.. .-.. --- configuration --.. ..- .-.. .-.. ---
-CASE_DIR = os.path.dirname(__file__)
-VTU_FILE = os.path.join(CASE_DIR, "output", "fields.vtu")
-OUT_JSON = os.path.join(CASE_DIR, "output", "non-regression.json")
+CASE_DIR, VTU_FILE, OUT_JSON = case_paths(__file__)
 OUT_DIR = os.path.join(CASE_DIR, "output")
 
 # Parameters
-with open(os.path.join(CASE_DIR, "geometry.yaml")) as f:
-    geom = yaml.safe_load(f)
+geom, inp, mat = load_case(CASE_DIR)
 L = float(geom["Lx"])     # cube edge (m)
 R = float(geom["ax"])     # cavity radius (m)
 
-with open(os.path.join(CASE_DIR, "input.yaml")) as f:
-    inp = yaml.safe_load(f)
-mat_path = os.path.join(CASE_DIR, next(iter(inp["materials"].values())))
-with open(mat_path) as f:
-    mat = yaml.safe_load(f)
 
 Pi = 1.0e6          # internal pressure (Pa)
 
@@ -131,21 +122,21 @@ sigma_vm_ref = sigma_vm_an(r)
 
 plt.figure(figsize=(6, 4))
 
-plt.plot(r, sigma_rr_num, "b.", lw=1.5, label=r"$\sigma_{rr}$ (num)")
-plt.plot(r, sigma_tt_num, "r.", lw=1.5, label=r"$\sigma_{\theta\theta}$ (num)")
+plt.plot(r, sigma_rr_num, ".", color="#0072B2", lw=1.5, label=r"$\sigma_{rr}$ (num)")
+plt.plot(r, sigma_tt_num, ".", color="#D55E00", lw=1.5, label=r"$\sigma_{\theta\theta}$ (num)")
 plt.plot(r, sigma_vm_num, "k.", lw=1.5, label=r"$\sigma_\mathrm{vm}$ (num)")
-plt.plot(r, sigma_rr_ref, "b--", lw=1.2, label=r"$\sigma_{rr}$ (ana)")
-plt.plot(r, sigma_tt_ref, "r--", lw=1.2, label=r"$\sigma_{\theta\theta}$ (ana)")
+plt.plot(r, sigma_rr_ref, "--", color="#0072B2", lw=1.2, label=r"$\sigma_{rr}$ (ana)")
+plt.plot(r, sigma_tt_ref, "--", color="#D55E00", lw=1.2, label=r"$\sigma_{\theta\theta}$ (ana)")
 plt.plot(r, sigma_vm_ref, "k--", lw=1.2, label=r"$\sigma_\mathrm{vm}$ (ana)")
 
-plt.axvline(R, color="blue", lw=0.8, ls=":", label="Cavity radius")
-plt.axvline(L * 0.5, color="red", lw=0.8, ls="--", label="Box edge")
+plt.axvline(R, color="#0072B2", lw=0.8, ls=":", label="Cavity radius")
+plt.axvline(L * 0.5, color="#D55E00", lw=0.8, ls="--", label="Box edge")
 
 plt.xlabel("r (m)")
 plt.ylabel("Stress (Pa)")
 plt.title("Stress comparison", fontsize=10)
 plt.grid(True, which="both", ls=":", lw=0.5)
-plt.legend(fontsize=8, frameon=False, loc="upper right")
+plt.legend(fontsize=10, frameon=False, loc="upper right")
 plt.tight_layout(rect=[0, 0, 1, 1])
 plt.savefig(
     os.path.join(OUT_DIR, "stress_comparison.png"), dpi=300, bbox_inches="tight", transparent=False
@@ -170,7 +161,4 @@ errors = {
 }
 
 # --.. ..- .-.. .-.. --- pass/fail + regression --.. ..- .-.. .-.. ---
-pass_fail_check(errors, TOLERANCE, OUT_JSON, CASE_DIR)
-regression_check(errors, CASE_DIR)
-
-print("\n[INFO] non-regression completed.\n")
+finish(errors, TOLERANCE, OUT_JSON, CASE_DIR)

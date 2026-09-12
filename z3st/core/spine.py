@@ -2,11 +2,13 @@
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 # Z3ST: An open-source FEniCSx framework for thermo-mechanical analysis
 # Author: Giovanni Zullo
-# Version: 0.2.0 (2026)
+# Version: 0.3.2 (2026)
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 
 import importlib
+import inspect
 import sys
+from typing import Any
 
 import dolfinx
 import ufl
@@ -69,8 +71,6 @@ class Spine(
             ThermalModel.__init__(self)
         if self.on.get("mechanical", False):
             MechanicalModel.__init__(self)
-        if self.on.get("gap", False):
-            GapModel.__init__(self)
         if self.on.get("contact", False):
             ContactModel.__init__(self)
         if self.on.get("damage", False):
@@ -94,6 +94,22 @@ class Spine(
         module_path, func_name = path.rsplit(".", 1)
         mod = importlib.import_module(module_path)
         return getattr(mod, func_name)
+
+    def call_material_function(self, func, T, material):
+        """Call a material hook with optional material/model state-bus args.
+
+        """
+        try:
+            params = inspect.signature(func).parameters
+        except (TypeError, ValueError):
+            return func(T)
+
+        kwargs = {}
+        if "material" in params:
+            kwargs["material"] = material
+        if "model" in params:
+            kwargs["model"] = self
+        return func(T, **kwargs)
 
     def load_materials(self, **materials):
         print(f"[spine.load_materials]")
@@ -147,7 +163,18 @@ class Spine(
                         str(mat["k"].get("type", "")).lower() in ("neural_network", "nn"):
                     print(f"  → k defined as neural network: {mat['k'].get('weights')}")
                     from z3st.models.nn_conductivity import load_from_card
-                    mat["_k_nn"] = load_from_card(mat["k"])
+                    mat["_k_model"] = load_from_card(mat["k"])
+                elif isinstance(mat["k"], dict) and \
+                        str(mat["k"].get("type", "")).lower() in ("gpr", "gaussian_process"):
+                    print(f"  → k defined as Gaussian-process model: "
+                          f"{mat['k'].get('model', mat['k'].get('path'))}")
+                    from z3st.models.gpr_conductivity import load_from_card
+                    mat["_k_model"] = load_from_card(mat["k"], material=mat)
+                elif isinstance(mat["k"], dict) and \
+                        str(mat["k"].get("type", "")).lower() in ("magni", "magni_mox"):
+                    print("  → k defined as Magni MA-MOX data-driven model")
+                    from z3st.models.magni_conductivity import load_from_card
+                    mat["_k_model"] = load_from_card(mat["k"], material=mat)
                 elif isinstance(mat["k"], str):
                     print(f"  → k defined as symbolic function: {mat['k']}")
                     k_func = self.resolve_function(mat["k"])
@@ -161,9 +188,8 @@ class Spine(
             Gc = mat.get("Gc")
 
             # YAML quirk: scientific notation without explicit +/- in the exponent
-            # (e.g. `1.0e9`) is parsed as a *string*, not a float. Coerce defensively
-            # so users don't hit a confusing TypeError downstream. A symbolic
-            # Gc string (e.g. "module.func") will fail the float() and keep its string
+            # (e.g. `1.0e9`) is parsed as a string, not a float. A symbolic Gc
+            # string (e.g. "module.func") fails the float() and keeps its string
             # form for the resolver below.
             if isinstance(sigma_c, str):
                 try:
@@ -194,9 +220,8 @@ class Spine(
                 if sigma_c is not None or (
                     Gc is not None and isinstance(Gc, (int, float, np.floating, np.integer))
                 ):
-                    # The Gc ↔ sigma_c identities below need a NUMERIC Young's
-                    # modulus; with a symbolic "module.func" E card the raw
-                    # string would reach an arithmetic op as an opaque TypeError.
+                    # The Gc ↔ sigma_c identities below need a numeric Young's
+                    # modulus.
                     if not isinstance(mat.get("E"), (int, float, np.floating, np.integer)):
                         raise ValueError(
                             f"Material '{name}': the Gc <-> sigma_c conversion "
@@ -230,8 +255,6 @@ class Spine(
             constitutive_mode = mat.get("constitutive", "lame").lower()
             mat["constitutive_mode"] = constitutive_mode
             print(f"  → constitutive model: {constitutive_mode}")
-            if constitutive_mode == "voigt" and mat.get("C_matrix") is not None:
-                print("    using user-provided C_matrix (6x6)")
 
             if self.on.get("plasticity", False) and constitutive_mode == "lame" \
                     and "yield_strength" in mat:
@@ -312,7 +335,7 @@ class Spine(
 
             mat["__label__"] = name
             self.materials[name] = mat
-            # Full per-key material dump only under --debug (CODE-P2-4)
+            # Full per-key material dump only under --debug
             if "--debug" in sys.argv:
                 for k in sorted(mat.keys()):
                     v = mat[k]
@@ -358,9 +381,8 @@ class Spine(
 
             # Burnup state field (MWd/kgU). A fissile material accumulates its own
             # local burnup from the deposited fission power (see update_state).
-            # Created once, here, and *never* zeroed — it is history, not a per-step
-            # source. Absent when no material is fissile, so non-fuel runs pay
-            # nothing.
+            # Created once, here, and never zeroed. Absent when no material is
+            # fissile.
             if any(m.get("fissile", False) for m in self.materials.values()):
                 self.burnup = dolfinx.fem.Function(self.V_t, name="Burnup")
                 self.burnup.x.array[:] = 0.0
@@ -431,16 +453,16 @@ class Spine(
         for name, mat in self.materials.items():
             if "_k_func" in mat and self.T:
                 k_func = mat["_k_func"]
-                mat["k"] = k_func(self.T)
+                mat["k"] = self.call_material_function(k_func, self.T, mat)
                 print("\nk expression for", name, "→", mat["k"])
 
-            # Neural-network conductivity
-            if "_k_nn" in mat and self.T is not None:
-                k_fn = dolfinx.fem.Function(self.V_t, name=f"k_nn_{name}")
-                k_fn.x.array[:] = mat["_k_nn"](self.T.x.array)
+            # Data-driven conductivity
+            if "_k_model" in mat and self.T is not None:
+                k_fn = dolfinx.fem.Function(self.V_t, name=f"k_model_{name}")
+                k_fn.x.array[:] = mat["_k_model"](self.T.x.array)
                 k_fn.x.scatter_forward()
                 mat["k"] = k_fn
-                print(f"\nk neural-network field for {name} → Function on V_t "
+                print(f"\nk data-driven field for {name} → Function on V_t "
                       f"(min={k_fn.x.array.min():.3f}, max={k_fn.x.array.max():.3f} W/m/K)")
 
             # Porosity-dependent conductivity
@@ -503,8 +525,8 @@ class Spine(
 
                 # Power form factors. A fissile material may shape its own
                 # volumetric source through the callables ``radial_profile``
-                # f(r, bu) (intended for a TUBRNP-style rim profile later) and/or
-                # ``axial_profile`` f(z) (e.g. the chopped cosine). Each callable
+                # f(r, bu) and/or ``axial_profile`` f(z) (e.g. the chopped
+                # cosine). Each callable
                 # receives the dof coordinates and the current local burnup. The
                 # composite f_r·f_z is normalised once to nodal mean 1, so the
                 # shaping redistributes the linear heat rate without changing its
@@ -541,19 +563,18 @@ class Spine(
                               f"non-positive mean ({mean:.3e}); shaping skipped.")
                         shape = np.ones(len(dofs))
 
-                # Accumulate: if multiple sources are configured on the same
-                # material (e.g. fissile + gamma_heating below), they should
-                # add — not overwrite.
+                # Accumulate: multiple sources on the same material (e.g.
+                # fissile + gamma_heating below) add.
                 self.q_third.x.array[dofs] += q_val * shape
                 print(f"  q_third += {q_val:.3e} W/m³ × f(r,bu)·f(z) (fissile, mean f = 1)")
                 print(f"  Heat flux = {self.lhr / self.perimeter:.3e} W/m2")
 
                 # Integrated-power diagnostic: the exact FE integral of the
                 # fissile source over this material, with the regime weight
-                # (2πr in axisymmetric). For a rod this should track LHR·Lz;
-                # a radially peaked profile deviates slightly because the mean-1
-                # normalisation is nodal, not area-weighted. The form is compiled
-                # once and cached (q_third updates in place).
+                # (2πr in axisymmetric). For a rod this tracks LHR·Lz; a radially
+                # peaked profile deviates slightly, the mean-1 normalisation
+                # being nodal rather than area-weighted. The form is compiled
+                # once and cached; q_third updates in place.
                 if not hasattr(self, "_power_forms"):
                     self._power_forms = {}
                 if name not in self._power_forms:
@@ -568,14 +589,13 @@ class Spine(
                 P_int = dolfinx.fem.assemble_scalar(self._power_forms[name])
                 P_int = self.mesh.comm.allreduce(P_int, op=MPI.SUM)
                 unit = {"axisymmetric": "W", "3d": "W", "2d": "W/m",
-                        "plane_stress": "W/m", "1d": "W/m²"}.get(self.regime, "W")
+                        "1d": "W/m²"}.get(self.regime, "W")
                 print(f"  [INFO] Integrated fissile power in {name}: {P_int:.6e} {unit}")
 
             if float(mat.get("gamma_heating", 0.0)) > 0.0:
                 # Cylindrical and spherical gamma-decay correlations use
-                # `inner_radius` as the reference surface. If it is zero
-                # we'd hit K_0(0) = +inf (cyl) or 1/r at r=0 (sphere); the
-                # spurious result is silent zero or NaN heating. Surface up.
+                # `inner_radius` as the reference surface, and require it
+                # non-zero: K_0(0) = +inf (cyl), 1/r at r = 0 (sphere).
                 if (
                     self.geometry_type in ("cyl", "cylinder", "sphere")
                     and float(getattr(self, "inner_radius", 0.0) or 0.0) == 0.0
@@ -591,11 +611,9 @@ class Spine(
                 q_third_0 = float(mat["gamma_heating"])
                 mu = float(mat["mu_gamma"])
                 # Per-material reference surface for the cylindrical/spherical
-                # decay correlation. Defaults to the geometry inner_radius
-                # (backward-compatible). A material that sits inboard of the
-                # geometry reference (e.g. a thermal shield in front of the
-                # vessel) sets `gamma_inner_radius` so its K_0 profile is
-                # normalised at its own inner surface rather than the vessel's.
+                # decay correlation. Defaults to the geometry inner_radius.
+                # `gamma_inner_radius` normalises the K_0 profile at the
+                # material's own inner surface instead.
                 gamma_Ri = float(mat.get("gamma_inner_radius", self.inner_radius))
 
                 def f(x, q_third_0=q_third_0, mu=mu, gamma_Ri=gamma_Ri):
@@ -608,8 +626,9 @@ class Spine(
                             self.regime == "axisymmetric"
                             or self.regime == "2d"
                         ):
-                            # 2D axisymmetric case, x[0] = r, x[1] = z
-                            # 2D axisymmetric case, x[0] = x, x[1] = y
+                            # x[0] is the radial coordinate: r in axisymmetric
+                            # (x[1] = z), and the cross-section x in 2d, where
+                            # the profile is meant to be swept about x = 0.
                             radius = x[0]
                         elif self.regime == "3d":
                             # 3D cartesian case, x[0] = x, x[1] = y
@@ -626,8 +645,7 @@ class Spine(
 
                 f_func = dolfinx.fem.Function(self.V_t)
                 f_func.interpolate(f)
-                # Accumulate (see CODE-P1-10): allows fissile + gamma_heating
-                # on the same material to combine rather than overwrite.
+                # Accumulate: fissile + gamma_heating on the same material combine.
                 self.q_third.x.array[dofs] += f_func.x.array[dofs]
 
         self.q_third.x.scatter_forward()
@@ -645,9 +663,9 @@ class Spine(
 
             Δbu = q_third · dt / (ρ · HM_frac · 8.64e10)   [MWd/kgU]
 
-        No feedback is applied here — burnup is recorded. Downstream behaviours
-        that consume it (fuel-k(bu), swelling(bu,T), FGR) read this field, so a
-        fissile case without such behaviour is unaffected in its solve.
+        No feedback is applied here — burnup is only recorded. Downstream
+        behaviours that consume it (fuel-k(bu), swelling(bu,T), FGR) read this
+        field.
         """
         if self.burnup is None or dt <= 0.0:
             return
@@ -696,8 +714,7 @@ class Spine(
         self._sciantix_dofs = (
             np.unique(np.concatenate(dof_lists)) if dof_lists else np.array([], dtype=np.int64)
         )
-        # Per-dof heavy-metal fraction for the burnup unit conversion at the
-        # handoff: Z3ST's RADAR burnup is MWd/kgU (per kg heavy metal), while the
+        # RADAR burnup is MWd/kgU (per kg heavy metal), while the
         # binding's H_BURNUP_OLD/NEW history slots are MWd/kgUO2 — SCIANTIX must
         # see bu·hm or every burnup-driven model runs ~1/hm (≈13%) too burnt.
         n_dofs = (self.V_t.dofmap.index_map.size_local
@@ -777,31 +794,29 @@ class Spine(
 
     def snapshot_state(self):
         """Deep-copy every step-level state field so a time step can be rolled
-        back and retried at a smaller dt (adaptive time-stepping, piece B).
+        back and retried at a smaller dt.
 
-        The roster of what is captured lives in the class constants
-        ``_SNAPSHOT_FIELDS`` / ``_SNAPSHOT_DICTS`` / ``_SNAPSHOT_MATERIAL_*`` —
-        extend those when adding new persistent state. Captured (only those
+        The roster lives in the class constants ``_SNAPSHOT_FIELDS`` /
+        ``_SNAPSHOT_DICTS`` / ``_SNAPSHOT_MATERIAL_*``. Captured (only those
         present, per active physics):
 
         - primary fields T, u, D and the crack-driving history H;
         - the burnup accumulator and the cluster pair c / c_n;
         - the plasticity history p, ep, p_n, ep_n;
-        - the per-material creep dicts eps_cr and _dgamma0 (predictor,
-          updated every iteration, so polluted even by a failed attempt);
+        - the per-material creep dicts eps_cr and _dgamma0;
         - per-material cracking scalars (``_lhr_max`` is a running max that
-          does NOT decrease, so without rollback a bisected sub-step inherits
-          the failed attempt's stiffness degradation) and the live lmbda/G
-          Constants.
+          does not decrease) and the live lmbda/G Constants.
 
-        NOT captured: iteration scratch (``_aitken_R_prev``, ``_aitken_p_R_prev``,
-        ``_h_gap_prev``) — solve_staggered resets those at entry.
+        Not captured: iteration scratch (``_aitken_R_prev``,
+        ``_aitken_p_R_prev``, ``_h_gap_prev``); solve_staggered resets those at
+        entry.
 
-        IMPORTANT: take the snapshot at the very start of a (sub)step, BEFORE
+        Take the snapshot at the very start of a (sub)step, before
         parameters()/set_power()/update_state() run, so ``_lhr_max`` and burnup
         are captured at their last-converged values.
         """
-        snap = {"fields": {}, "dicts": {}, "materials": {}}
+        # Heterogeneous by design: the SCIANTIX entry below is a list, not a dict.
+        snap: dict[str, Any] = {"fields": {}, "dicts": {}, "materials": {}}
         for name in self._SNAPSHOT_FIELDS:
             fn = getattr(self, name, None)
             if isinstance(fn, dolfinx.fem.Function):
@@ -822,16 +837,14 @@ class Spine(
                     msnap[k + ".value"] = float(v.value)
             if msnap:
                 snap["materials"][mname] = msnap
-        # SCIANTIX per-point C-state (variables/diffusion_modes/history) — the
-        # gas_swelling dolfinx field alone is not enough to roll back a step.
+        # SCIANTIX per-point C-state (variables/diffusion_modes/history).
         if self.sciantix_field is not None:
             snap["sciantix"] = self.sciantix_field.snapshot()
         return snap
 
     def restore_state(self, snap):
         """Inverse of :meth:`snapshot_state`: write every captured field, dict
-        and material scalar back in place, undoing a failed or oversized step so
-        it can be retried at a smaller dt. scatter_forward keeps ghost dofs
+        and material scalar back in place. scatter_forward keeps ghost dofs
         consistent after the in-place array overwrite."""
         for name, arr in snap.get("fields", {}).items():
             fn = getattr(self, name)
@@ -862,23 +875,18 @@ class Spine(
         print("\n")
 
         print(f"Current step = {self.current_step} | dt = {dt:.2e} s")
-        print(f"Coupling = {self.coupling}")
 
-        if self.coupling == "staggered":
-            # Return the convergence result so the time loop can react to a
-            # stalled step: True on convergence, False if it exhausts max_iter.
-            return self.solve_staggered(
-                max_iter=max_iters,
-                dt=dt,
-                rtol_th=self.th_cfg.get("rtol", 1e-6) if self.on.get("thermal") else 1e-6,
-                rtol_mech=self.mech_cfg.get("rtol", 1e-6) if self.on.get("mechanical") else 1e-6,
-                rtol_dmg=self.dmg_cfg.get("rtol", 1e-6) if hasattr(self, 'dmg_cfg') else 1e-6,
-                stag_tol_th=self.th_cfg.get("stag_tol", 1e-4) if self.on.get("thermal") else 1e-4,
-                stag_tol_mech=self.mech_cfg.get("stag_tol", 1e-4) if self.on.get("mechanical") else 1e-4,
-                stag_tol_dmg=self.dmg_cfg.get("stag_tol", 1e-4) if hasattr(self, 'dmg_cfg') else 1e-4
-            )
-        else:
-            raise ValueError(f"Unknown coupling strategy: {self.coupling}. Only staggered coupling is supported.")
+        # True on convergence, False if it exhausts max_iter.
+        return self.solve_staggered(
+            max_iter=max_iters,
+            dt=dt,
+            rtol_th=self.th_cfg.get("rtol", 1e-6) if self.on.get("thermal") else 1e-6,
+            rtol_mech=self.mech_cfg.get("rtol", 1e-6) if self.on.get("mechanical") else 1e-6,
+            rtol_dmg=self.dmg_cfg.get("rtol", 1e-6) if hasattr(self, 'dmg_cfg') else 1e-6,
+            stag_tol_th=self.th_cfg.get("stag_tol", 1e-4) if self.on.get("thermal") else 1e-4,
+            stag_tol_mech=self.mech_cfg.get("stag_tol", 1e-4) if self.on.get("mechanical") else 1e-4,
+            stag_tol_dmg=self.dmg_cfg.get("stag_tol", 1e-4) if hasattr(self, 'dmg_cfg') else 1e-4
+        )
 
     def get_results(self):
         if not (self.on.get("mechanical", False) or self.on.get("thermal", False)):

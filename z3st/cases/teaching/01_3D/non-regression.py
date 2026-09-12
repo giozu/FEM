@@ -34,17 +34,15 @@ import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 
+from z3st.utils.non_regression import case_paths, error_metric, finish, metric
 from z3st.utils.utils_extract_vtu import (
     list_fields,
     extract_field,
     extract_displacement,
 )
-from z3st.utils.utils_verification import pass_fail_check, regression_check
 
 # --.. ..- .-.. .-.. --- configuration --.. ..- .-.. .-.. ---
-CASE_DIR = os.path.dirname(__file__)
-VTU_FILE = os.path.join(CASE_DIR, "output", "fields.vtu")
-OUT_JSON = os.path.join(CASE_DIR, "output", "non-regression.json")
+CASE_DIR, VTU_FILE, OUT_JSON = case_paths(__file__)
 MATERIAL_FILE = os.path.join(CASE_DIR, "../../../materials/steel.yaml")
 GEOMETRY_FILE = os.path.join(CASE_DIR, "geometry.yaml")
 BC_FILE = os.path.join(CASE_DIR, "boundary_conditions.yaml")
@@ -148,9 +146,9 @@ fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 # The transverse and shear stresses (sigma_yy, sigma_zz, sigma_xy) are all ~0
 # (free Poisson contraction -> uniaxial stress) and overlap, so plot a single
 # representative series to avoid clutter.
-ax1.plot(x_s, sigma_xx * Pa_to_MPa, "bo-", label=r"FE $\sigma_{xx}$",
+ax1.plot(x_s, sigma_xx * Pa_to_MPa, "o-", color="#0072B2", label=r"FE $\sigma_{xx}$",
          markersize=6, alpha=0.8)
-ax1.plot(x_s, sigma_yy * Pa_to_MPa, "rs-",
+ax1.plot(x_s, sigma_yy * Pa_to_MPa, "s-", color="#D55E00",
          label=r"FE $\sigma_{yy}=\sigma_{zz}=\sigma_{xy}$",
          markersize=5, alpha=0.8)
 ax1.axhline(P * Pa_to_MPa, color="k", linestyle="--", linewidth=1.2,
@@ -160,10 +158,10 @@ ax1.axhline(0.0, color="grey", linestyle=":", linewidth=0.9,
 ax1.set_xlabel("x (m)", fontsize=12)
 ax1.set_ylabel("Stress (MPa)", fontsize=12)
 ax1.set_title("Stress along the bar axis (y=Ly/2, z=Lz/2)", fontsize=12)
-ax1.legend(loc="best", fontsize=9)
+ax1.legend(loc="best", fontsize=10)
 ax1.grid(True, linestyle="--", alpha=0.6)
 
-ax2.plot(x_n_axis, u_x_axis * 1e3, "bo", label=r"FE $u_x$", markersize=7)
+ax2.plot(x_n_axis, u_x_axis * 1e3, "o", color="#0072B2", label=r"FE $u_x$", markersize=7)
 x_dense = np.linspace(0.0, Lx, 200)
 ax2.plot(x_dense, eps_xx_ref * x_dense * 1e3, "k--", linewidth=1.5,
          label=r"Analytic $u_x = P\,x/E$")
@@ -205,27 +203,9 @@ errors = {
         "abs_error": float(np.max(np.abs(sigma_xx - sigma_xx_ref))),
         "rel_error": sigma_xx_err,
     },
-    "sigma_yy_max_abs": {
-        "numerical": float(np.max(np.abs(sigma_yy))),
-        "reference": 0.0,
-        "abs_error": float(np.max(np.abs(sigma_yy))),
-        "rel_error": sigma_yy_err,
-    },
-    "sigma_zz_max_abs": {
-        "numerical": float(np.max(np.abs(sigma_zz))),
-        "reference": 0.0,
-        "abs_error": float(np.max(np.abs(sigma_zz))),
-        "rel_error": sigma_zz_err,
-    },
-    "u_xL": {
-        "numerical": u_xL_num,
-        "reference": u_xL_ref,
-        "abs_error": abs(u_xL_num - u_xL_ref),
-        "rel_error": u_xL_err,
-    },
+    "sigma_yy_max_abs": error_metric(np.max(np.abs(sigma_yy)), rel=sigma_yy_err),
+    "sigma_zz_max_abs": error_metric(np.max(np.abs(sigma_zz)), rel=sigma_zz_err),
+    "u_xL": metric(u_xL_num, u_xL_ref, rel=u_xL_err),
 }
 
-pass_fail_check(errors, TOLERANCE, OUT_JSON, CASE_DIR)
-regression_check(errors, CASE_DIR)
-
-print("\n[INFO] non-regression completed.\n")
+finish(errors, TOLERANCE, OUT_JSON, CASE_DIR)

@@ -29,7 +29,7 @@ import csv
 import yaml
 import numpy as np
 
-from z3st.utils.utils_verification import pass_fail_check, regression_check
+from z3st.utils.non_regression import finish, metric
 from z3st.utils.utils_load import generate_power_history
 
 CASE_DIR = os.path.dirname(__file__)
@@ -52,6 +52,13 @@ gap_um = float(last["gap_um"])
 p_mpa = float(last["contact_pressure_MPa"])
 t_max_final = float(last["T_max_K"])
 t_max_peak = max(float(r["T_max_K"]) for r in rows)
+
+# Burnup at gap closure
+_closure = next((r for r in rows
+                 if float(r.get("contact_pressure_MPa") or 0.0) > 0.0), None)
+bu_closure = float(_closure["burnup_avg_MWdkgU"]) if _closure else float("nan")
+day_closure = float(_closure["time_days"]) if _closure else float("nan")
+print(f"[INFO] gap closure       : {bu_closure:.4f} MWd/kgU at day {day_closure:.1f}")
 
 # --. closed-form mean burnup from the input power history --..
 with open(os.path.join(CASE_DIR, "input.yaml")) as f:
@@ -93,20 +100,13 @@ def _regression_only(value):
             "abs_error": 0.0, "rel_error": 0.0}
 
 errors = {
-    "burnup_avg_final": {
-        "numerical": bu_avg,
-        "reference": BU_REF,
-        "abs_error": float(abs(bu_avg - BU_REF)),
-        "rel_error": float(abs(bu_avg - BU_REF) / BU_REF),
-    },
+    "burnup_avg_final": metric(bu_avg, BU_REF),
     "burnup_max_final": _regression_only(bu_max),
     "gap_final_um": _regression_only(gap_um),
     "contact_pressure_final_MPa": _regression_only(p_mpa),
     "T_max_final_K": _regression_only(t_max_final),
     "T_max_peak_K": _regression_only(t_max_peak),
+    "burnup_at_gap_closure_MWdkgU": _regression_only(bu_closure),
 }
 
-pass_fail_check(errors, TOLERANCE, OUT_JSON, CASE_DIR)
-regression_check(errors, CASE_DIR)
-
-print("\n[INFO] non-regression completed.\n")
+finish(errors, TOLERANCE, OUT_JSON, CASE_DIR)

@@ -49,7 +49,7 @@ P = ½(m⊗n + n⊗m)                            [Schmid tensor]
 | γ₀ | 0.001 s⁻¹ | Reference slip rate |
 | n | 5 | Power law exponent |
 
-**File:** [`../../materials/single_crystal.yaml`](../../materials/single_crystal.yaml)
+**File:** [`single_crystal.yaml`](single_crystal.yaml)
 
 ## Geometry and Loading
 
@@ -228,9 +228,9 @@ The `non-regression.py` script performs:
 
 | File | Purpose |
 |------|---------|
-| [`single_crystal_law.py`](../../materials/single_crystal_law.py) | Crystal plasticity constitutive model |
-| [`single_crystal.yaml`](../../materials/single_crystal.yaml) | Material parameters |
-| [`plasticity_model.py`](../../models/plasticity_model.py) | History variable management |
+| [`single_crystal_law.py`](single_crystal_law.py) | Crystal plasticity constitutive model |
+| [`single_crystal.yaml`](single_crystal.yaml) | Material parameters |
+| `z3st/models/plasticity_model.py` | History variable management |
 | [`input.yaml`](input.yaml) | Simulation configuration |
 | [`non-regression.py`](non-regression.py) | Verification and plotting |
 
@@ -363,6 +363,13 @@ See main Z3ST repository for license information.
 
 ---
 
-**Last Updated:** June 2026
-**Z3ST Version:** 0.2.0
-**FEniCSx Version:** 0.10.0
+**Last verified:** August 2026, by re-running the case against its blessed gold
+**Z3ST Version:** 0.3.2
+**FEniCSx Version:** 0.11.0
+
+This directory duplicates
+[`z3st/cases/verification/plasticity/crystal_single_grain`](../../../../z3st/cases/verification/plasticity/crystal_single_grain)
+so that the documentation build has the figure locally. It carries no `Allrun`;
+build the mesh with `gmsh -3 mesh.geo -format msh2`, then `python3 -m z3st`,
+then `python3 non-regression.py`. Being a copy, it drifts: prefer the case
+above, which the suite exercises.

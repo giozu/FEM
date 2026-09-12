@@ -5,7 +5,7 @@
 Verification of the penalty contact pressure against the analytical Lame
 interference-fit pressure, on a 3D quarter-disk segment (the r-theta quarter
 disk extruded along z, with the z0 face as axial mid-plane symmetry and the
-z1 face traction-free). The slice is axially FREE, so — unlike the
+z1 face traction-free). The slice is axially free, so — unlike the
 plane-strain 2D disk case — the exact solution is the open-ended
 (plane-stress, sigma_zz = 0) Lame state. The inner disk is heated uniformly,
 so its free thermal expansion is exactly u(b) = alpha_f (T - T_ref) b and the
@@ -28,8 +28,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pyvista as pv
 
-from z3st.utils.utils_extract_vtu import *
-from z3st.utils.utils_verification import *
+from z3st.utils.utils_verification import pass_fail_check, regression_check
 
 CASE = os.path.dirname(__file__)
 OUT = os.path.join(CASE, "output")
@@ -76,7 +75,7 @@ T_pellet, p_z3st, p_lame = map(np.array, (T_pellet, p_z3st, p_lame))
 
 plt.figure(figsize=(7, 5))
 plt.plot(T_pellet, p_lame, "k--", lw=1.5, label="Analytical Lame interference (exact)")
-plt.plot(T_pellet, p_z3st, "r-o", lw=2, label="Z3ST penalty contact")
+plt.plot(T_pellet, p_z3st, "-o", color="#D55E00", lw=2, label="Z3ST penalty contact")
 plt.xlabel("pellet temperature (K)")
 plt.ylabel("contact pressure (MPa)")
 plt.title("Contact pressure verification: Z3ST vs Lame (3D disk segment, uniform ΔT)")
@@ -94,9 +93,7 @@ mask = p_lame > 0.25 * p_lame.max()
 if not mask.any():
     # p_lame is identically zero, i.e. the interference never becomes
     # positive, so there is no established contact to compare against the
-    # Lame fit. Stop with a verdict: the errors dict below indexes this mask
-    # and would otherwise raise NameError on `rel` and ValueError on an empty
-    # reduction.
+    # Lame fit.
     raise SystemExit(
         "[FAIL] the interference never becomes positive, so contact never "
         "engages; the case premise (the gap closes under the temperature "
@@ -159,19 +156,19 @@ def plot_stress_profiles():
 
     fig, ax = plt.subplots(figsize=(7.5, 5))
     # analytic (lines)
-    ax.plot(rp * 1e3, np.full_like(rp, -p), color="C0", ls="--", lw=1.5,
+    ax.plot(rp * 1e3, np.full_like(rp, -p), color="#0072B2", ls="--", lw=1.5,
             label=r"$\sigma_{rr}$ analytic")
-    ax.plot(rcl * 1e3, srr_clad, color="C0", ls="--", lw=1.5)
-    ax.plot(rp * 1e3, np.full_like(rp, -p), color="C3", ls=":", lw=1.8,
+    ax.plot(rcl * 1e3, srr_clad, color="#0072B2", ls="--", lw=1.5)
+    ax.plot(rp * 1e3, np.full_like(rp, -p), color="#D55E00", ls=":", lw=1.8,
             label=r"$\sigma_{\theta\theta}$ analytic")
-    ax.plot(rcl * 1e3, stt_clad, color="C3", ls=":", lw=1.8)
+    ax.plot(rcl * 1e3, stt_clad, color="#D55E00", ls=":", lw=1.8)
     # Z3ST (markers)
-    ax.plot(rb[pellet] * 1e3, srr[pellet], "o", color="C0", ms=4,
+    ax.plot(rb[pellet] * 1e3, srr[pellet], "o", color="#0072B2", ms=4,
             label=r"$\sigma_{rr}$ Z3ST")
-    ax.plot(rb[cladm] * 1e3, srr[cladm], "o", color="C0", ms=4)
-    ax.plot(rb[pellet] * 1e3, stt[pellet], "s", color="C3", ms=4,
+    ax.plot(rb[cladm] * 1e3, srr[cladm], "o", color="#0072B2", ms=4)
+    ax.plot(rb[pellet] * 1e3, stt[pellet], "s", color="#D55E00", ms=4,
             label=r"$\sigma_{\theta\theta}$ Z3ST")
-    ax.plot(rb[cladm] * 1e3, stt[cladm], "s", color="C3", ms=4)
+    ax.plot(rb[cladm] * 1e3, stt[cladm], "s", color="#D55E00", ms=4)
 
     ax.axvspan(b * 1e3, bci * 1e3, color="0.85", alpha=0.7)
     ax.axhline(0, color="grey", lw=0.8, ls="-")
@@ -180,7 +177,7 @@ def plot_stress_profiles():
     ax.set_xlabel("radius r (mm)")
     ax.set_ylabel("stress (MPa)")
     ax.set_title(f"Radial / hoop stress vs Lame (p = {p:.1f} MPa, 3D disk segment)")
-    ax.legend(fontsize=8, ncol=2)
+    ax.legend(fontsize=10, ncol=2)
     ax.grid(True, ls=":", alpha=0.5)
     fig.tight_layout()
     fig.savefig(os.path.join(OUT, "stress_profile_verification.png"), dpi=150)

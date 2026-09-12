@@ -14,29 +14,20 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
-import yaml
 
+from z3st.utils.non_regression import case_paths, finish, load_case, metric
 from z3st.utils.utils_extract_vtu import extract_principal_stresses, extract_temperature, list_fields
 from z3st.utils.utils_plot import plot_field_along_r_xyz
-from z3st.utils.utils_verification import pass_fail_check, regression_check
 
 # --.. ..- .-.. .-.. --- configuration --.. ..- .-.. .-.. ---
-CASE_DIR = os.path.dirname(__file__)
-VTU_FILE = os.path.join(CASE_DIR, "output", "fields.vtu")
-OUT_JSON = os.path.join(CASE_DIR, "output", "non-regression.json")
+CASE_DIR, VTU_FILE, OUT_JSON = case_paths(__file__)
 
 # Parameters
-with open(os.path.join(CASE_DIR, "geometry.yaml")) as f:
-    geom = yaml.safe_load(f)
+geom, inp, mat = load_case(CASE_DIR)
 Ri = float(geom["Ri"])  # inner radius (m)
 Ro = float(geom["Ro"])  # outer radius (m)
 t = Ro - Ri  # thickness (m)
 
-with open(os.path.join(CASE_DIR, "input.yaml")) as f:
-    inp = yaml.safe_load(f)
-mat_path = os.path.join(CASE_DIR, next(iter(inp["materials"].values())))
-with open(mat_path) as f:
-    mat = yaml.safe_load(f)
 
 Pi = 0.000  # internal pressure (Pa)
 Po = 0.000  # external pressure (Pa)
@@ -111,10 +102,9 @@ rr, TT = plot_field_along_r_xyz(
     T,
     f"Temperature (K), R/t = {slenderness:.2f}",
     CASE_DIR,
-    color="tab:blue",
-    average="round",  # "round", "bins", "kernel", "weighted", False
+    color="#0072B2",
+    average="round",  # "round" or False
     decimals=2,
-    n_bins=100,
     r_ref=r_ref,
     f_ref=T_ref,
     label_ref="Analytical solution (slab)",
@@ -122,7 +112,7 @@ rr, TT = plot_field_along_r_xyz(
 
 r, _, _, sigma1, sigma2, sigma3 = extract_principal_stresses(
     VTU_FILE,
-    average="round",  # None, "bins", "weighted", "kernel", "round"
+    average="round",  # "round" or None
     decimals=2,
     return_coords=True,
 )
@@ -130,12 +120,12 @@ r, _, _, sigma1, sigma2, sigma3 = extract_principal_stresses(
 # --.. ..- .-.. .-.. --- analytical comparison --.. ..- .-.. .-.. ---
 plt.figure()
 
-plt.plot(r, sigma1, "r-", lw=2, label=r"$\sigma_1$")
-plt.plot(r, sigma2, "g-", lw=2, label=r"$\sigma_2$")
-plt.plot(r, sigma3, "b-", lw=2, label=r"$\sigma_3$")
+plt.plot(r, sigma1, "-", color="#D55E00", lw=2, label=r"$\sigma_1$")
+plt.plot(r, sigma2, "-", color="#009E73", lw=2, label=r"$\sigma_2$")
+plt.plot(r, sigma3, "-", color="#0072B2", lw=2, label=r"$\sigma_3$")
 
 # thermal_stress = sigma_th(rr, TT)
-# plt.plot(rr, thermal_stress, color="tab:pink", lw=2, label=r"$\sigma_{th}$")
+# plt.plot(rr, thermal_stress, color="#CC79A7", lw=2, label=r"$\sigma_{th}$")
 
 plt.xlabel("r (m)")
 plt.ylabel("Stress (Pa)")
@@ -156,12 +146,7 @@ sigma2_mean = 3.0 / (Ro**3 - Ri**3) * np.trapezoid(sigma2 * r**2, r)
 sigma3_mean = 3.0 / (Ro**3 - Ri**3) * np.trapezoid(sigma3 * r**2, r)
 
 errors = {
-    "T_max": {
-        "numerical": Tmax_num,
-        "reference": Tmax_ref,
-        "abs_error": abs(Tmax_num - Tmax_ref),
-        "rel_error": RelErr_Tmax,
-    },
+    "T_max": metric(Tmax_num, Tmax_ref, rel=RelErr_Tmax),
     "sigma1_mean": {
         "numerical": sigma1_mean,
         "reference": 0.0,
@@ -183,10 +168,4 @@ errors = {
 }
 
 
-# --. pass/fail check --..
-all_pass = pass_fail_check(errors, TOLERANCE, OUT_JSON, CASE_DIR)
-
-# --. regression vs gold --..
-regression_check(errors, CASE_DIR)
-
-print("\n[INFO] non-regression completed.\n")
+finish(errors, TOLERANCE, OUT_JSON, CASE_DIR)

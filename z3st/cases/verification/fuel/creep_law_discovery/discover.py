@@ -250,7 +250,7 @@ def run_stages(verbose=False):
     rule. Returns (active, z, z_full, shares_full, path, loss_full, loss_final),
     where active/z describe the selected model. Reads ``sigma_data`` through
     residuals_and_jacobian/strain_shares, so the caller sets that global before
-    invoking (the primary run and the robustness sweep both do)."""
+    invoking."""
     # stage 1: seed each candidate alone by a coarse 1D scan
     z_single = np.empty(K_FULL)
     for i in range(K_FULL):
@@ -319,10 +319,9 @@ if active == [2]:
           "discretisation defect of the FEM data (model-form discrepancy).")
 
 # ---------------------------------------------------------------------------
-# robustness: repeat the identification over independent noise realisations,
-# so the "recovered in every realisation" claim is reproducible from the suite
-# rather than asserted. Each seed draws a fresh 2% multiplicative-noise vector
-# and runs the same three-stage selection.
+# robustness: repeat the identification over independent noise realisations.
+# Each seed draws a fresh 2% multiplicative-noise vector and runs the same
+# three-stage selection.
 # ---------------------------------------------------------------------------
 N_SEEDS = 10
 robustness = []
@@ -393,7 +392,7 @@ t_grid = t_data
 sig_id = curve(z, active)
 ax1.plot(t_data / days, sigma_data / 1e6, "o", ms=6, mfc="none",
          mec="tab:blue", mew=1.5, label="FEM data + 2% noise")
-ax1.plot(t_grid / days, sig_id / 1e6, "r-", lw=2.2,
+ax1.plot(t_grid / days, sig_id / 1e6, "-", color="#D55E00", lw=2.2,
          label=f"identified law ({' + '.join(names_id)})")
 tt = np.linspace(0, T_TOTAL, 400)
 sig_true = (SIGMA0 ** (1 - N_TRUE) + (N_TRUE - 1) * E * A_TRUE * tt) ** (-1 / (N_TRUE - 1))
@@ -410,8 +409,8 @@ c_full = np.exp(z_full)
 c_sel = np.array([c_id[active.index(i)] if i in active else 0.0
                   for i in range(K_FULL)])
 w = 0.38
-ax2.bar(x - w / 2, c_full, w, color="lightsteelblue", label="full-library fit")
-ax2.bar(x + w / 2, np.where(c_sel > 0, c_sel, np.nan), w, color="tab:red",
+ax2.bar(x - w / 2, c_full, w, color="#0072B2", label="full-library fit")
+ax2.bar(x + w / 2, np.where(c_sel > 0, c_sel, np.nan), w, color="#D55E00",
         label="after mechanism selection")
 ax2.axhline(C3_TRUE, color="k", ls="--", lw=1.2, label="true cubic coefficient")
 ax2.set_yscale("log")

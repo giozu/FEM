@@ -16,7 +16,7 @@ Workflow:
             ├── case_002_...
             └── ...
 
-To make a SINGLE case, set each list in SWEEP CONFIGURATION to one value.
+For a single case, set each list in SWEEP CONFIGURATION to one value.
 Set H = 0 in DEFAULTS to generate a 2D (planar) fragmented disk instead of
 the extruded 3D pellet.
 RCI / RCO in DEFAULTS add an intact cladding ring (annulus in 2D, tube in
@@ -33,6 +33,9 @@ import numpy as np
 from shapely.geometry import LineString, Polygon
 from shapely.ops import unary_union
 import matplotlib.pyplot as plt
+
+from z3st.utils.plotstyle import apply as _apply_plotstyle
+_apply_plotstyle()
 import gmsh
 
 
@@ -207,7 +210,7 @@ def generate_pellet(params, output_dir):
                 color='0.75', alpha=0.5, lw=0)
         for R_c in (RCI, RCO):
             ax.plot(R_c*np.cos(th), R_c*np.sin(th), '-', color='0.35', lw=1.0)
-    ax.plot(hub[0], hub[1], 'rx', markersize=10)
+    ax.plot(hub[0], hub[1], "x", color="#D55E00", markersize=10)
     ax.set_aspect('equal'); ax.set_xticks([]); ax.set_yticks([])
     title = (f"N={p['N_main']}  rings={p['circ_radii']}\n"
              f"seed={p['SEED']}  curl={p['curl_amp']}  branch={p['branch_prob']}")

@@ -119,7 +119,9 @@ for case_name in "${CASES[@]}"; do
     fi
 
     case_status="OK"
-    if [[ $exit_code -ne 0 || "$summary_status" != "PASS" || "$regression_status" == "FAIL" ]]; then
+    # A case is discovered only because it has a blessed gold, so the regression
+    # check must have run and passed. An empty verdict counts as a failure.
+    if [[ $exit_code -ne 0 || "$summary_status" != "PASS" || "$regression_status" != "PASS" ]]; then
         case_status="FAIL"
         global_status=1
     fi
@@ -128,7 +130,8 @@ for case_name in "${CASES[@]}"; do
         echo "Case: $case_name [${case_status}]"
         printf "  %-15s : %s\n" "Run" "$run_status"
         printf "  %-15s : %s\n" "Non-regression" "$summary_status"
-        printf "  %-15s : %s\n" "Gold regression" "${regression_status:-(no verdict)}"
+        printf "  %-15s : %s\n" "Gold regression" \
+               "${regression_status:-MISSING (gold absent — check never ran)}"
         printf "  %-15s : %ss\n" "Time" "$elapsed"
         echo ""
     } | tee -a "$SUMMARY_FILE"

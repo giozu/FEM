@@ -2,7 +2,7 @@
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 # Z3ST: An open-source FEniCSx framework for thermo-mechanical analysis
 # Author: Giovanni Zullo
-# Version: 0.2.0 (2026)
+# Version: 0.3.2 (2026)
 # --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. --- --.. ..- .-.. .-.. ---
 
 import json
@@ -76,8 +76,7 @@ def pass_fail_check(errors, tolerance, out_json, case_dir):
 
 def _write_regression_verdict(case_dir, verdict):
     """Persist the gold-regression result ('PASS'/'FAIL') into the run's
-    non-regression.json so the suite drivers (non-regression*.sh) can read it;
-    a regression is otherwise invisible outside stdout."""
+    non-regression.json so the suite drivers (non-regression*.sh) can read it."""
     out_json = os.path.join(case_dir, "output", "non-regression.json")
     try:
         with open(out_json, "r") as f:
@@ -86,8 +85,7 @@ def _write_regression_verdict(case_dir, verdict):
         with open(out_json, "w") as f:
             json.dump(data, f, indent=4)
     except (FileNotFoundError, json.JSONDecodeError) as exc:
-        # Loud, not silent: without the 'regression' key the suite drivers
-        # report "(no verdict)" and a detected FAIL would vanish.
+        # Without the 'regression' key the suite drivers report "(no verdict)".
         print(f"  {RED}[WARNING] could not persist regression verdict "
               f"'{verdict}' into {out_json} ({exc}); the suite drivers will "
               f"see no regression verdict for this case.{END}")
@@ -121,9 +119,7 @@ def regression_check(errors, case_dir, regression_tol=1e-3):
         with open(gold_file, "r") as f:
             gold_data = json.load(f)
     except (json.JSONDecodeError, OSError) as exc:
-        # A corrupt / unparseable gold must FAIL loudly, never be silently
-        # skipped: otherwise a broken gold disables the regression check and the
-        # suite reports a false pass.
+        # A corrupt or unparseable gold fails the case rather than being skipped.
         print(f"  {RED}[ERROR] GOLD file unreadable ({exc}); marking regression FAIL.{END}")
         _write_regression_verdict(case_dir, "FAIL")
         return False
@@ -140,8 +136,7 @@ def regression_check(errors, case_dir, regression_tol=1e-3):
         try:
             num_now = errors[key]["numerical"]
         except (KeyError, TypeError):
-            # A malformed entry must count as a regression, not raise after the
-            # summary was already written (which would leave no verdict at all).
+            # A malformed entry counts as a regression, and does not raise.
             print(f"  {key:18s} → malformed entry (no 'numerical') → REGRESSION")
             reg_pass = False
             continue
@@ -173,18 +168,16 @@ def regression_check(errors, case_dir, regression_tol=1e-3):
         # Fields whose analytical reference is exactly zero are 'should-be-zero'
         # residuals: their numerical value is floating-point noise that varies
         # between build/BLAS environments (e.g. the conda env vs the CI docker
-        # image), so any value-vs-gold comparison (relative or absolute) is
-        # ill-defined. It is a regression only if the residual is no longer
-        # acceptably small, i.e. its analytical status is not PASS.
-        # Defer to the field's own analytical status instead.
+        # image), and no value-vs-gold comparison applies. It is a regression
+        # only if the analytical status is not PASS.
         ref_val = gold_results.get(key, {}).get("reference", errors[key].get("reference"))
         near_zero_ref = ref_val is not None and np.all(
             np.abs(np.atleast_1d(np.asarray(ref_val, dtype=float))) <= 0.0
         )
         if near_zero_ref:
-            # Conservative default: an entry with no analytical status must not
-            # pass unconditionally (pass_fail_check always sets one; a missing
-            # status means this was called on raw data).
+            # Default FAIL for an entry with no analytical status
+            # (pass_fail_check always sets one; a missing status means this was
+            # called on raw data).
             passed = str(errors[key].get("status", "FAIL")).upper() == "PASS"
         else:
             passed = bool(np.all(rel_diff_arr < regression_tol))
